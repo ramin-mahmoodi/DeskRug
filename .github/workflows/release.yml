@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release version tag'
+        required: false
+        default: 'v0.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build & Publish Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Build Release Binary
+        shell: pwsh
+        run: |
+          cd src-tauri
+          cargo build --release
+
+      - name: Prepare Artifacts
+        shell: pwsh
+        run: |
+          Copy-Item src-tauri/target/release/deskrug.exe DeskRug.exe
+          Compress-Archive -Path DeskRug.exe -DestinationPath DeskRug-Windows-x64.zip
+          Get-Item DeskRug.exe, DeskRug-Windows-x64.zip | Select-Object Name, Length
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || (inputs.tag || 'v0.1.0') }}
+          name: DeskRug ${{ github.ref_type == 'tag' && github.ref_name || (inputs.tag || 'v0.1.0') }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            DeskRug.exe
+            DeskRug-Windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
