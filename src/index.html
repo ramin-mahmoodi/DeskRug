@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeskRug</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: transparent !important;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Tahoma, sans-serif;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  body.over { cursor: grab; }
+  body.grabbing { cursor: grabbing; }
+
+  /* TELEGRAM DESKTOP ACRYLIC MENU STYLING */
+  #tg-menu-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    font-size: 13px;
+    color: #e4ecf2;
+    direction: ltr;
+  }
+  #tg-backdrop {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+  }
+  .tg-panel {
+    position: absolute;
+    background: rgba(23, 33, 43, 0.96);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.35);
+    border-radius: 10px;
+    padding: 5px;
+    width: 215px;
+    display: flex;
+    flex-direction: column;
+    animation: tgFadeIn 0.12s cubic-bezier(0.2, 0, 0, 1);
+    z-index: 1000000;
+  }
+  @keyframes tgFadeIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .tg-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 1px;
+    max-height: 335px;
+  }
+  .tg-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+  .tg-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 4px;
+  }
+  .tg-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  .tg-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.08s ease, color 0.08s ease;
+    white-space: nowrap;
+    color: #e4ecf2;
+    min-height: 32px;
+  }
+  .tg-item:hover, .tg-item.active-sub {
+    background: rgba(82, 136, 193, 0.22);
+    color: #ffffff;
+  }
+  .tg-item.danger:hover {
+    background: rgba(234, 67, 53, 0.22);
+    color: #ff6b6b;
+  }
+  .tg-label {
+    flex: 1;
+    font-weight: 400;
+  }
+  .tg-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    opacity: 0.85;
+    flex-shrink: 0;
+  }
+  .tg-item:hover .tg-icon, .tg-item.active-sub .tg-icon {
+    opacity: 1;
+  }
+  .tg-arrow {
+    display: inline-flex;
+    align-items: center;
+    opacity: 0.5;
+    margin-left: 2px;
+  }
+  .tg-separator {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.07);
+    margin: 4px 6px;
+    flex-shrink: 0;
+  }
+  .tg-check {
+    width: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- TELEGRAM ACRYLIC POPUP MENU -->
+<div id="tg-menu-overlay">
+  <div id="tg-backdrop" onpointerdown="handleBackdropClick(event)"></div>
+
+  <!-- MAIN MENU -->
+  <div class="tg-panel" id="main-menu">
+    <div class="tg-item has-sub" id="item-styles" onmouseenter="openSub('styles')" onclick="openSub('styles')">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.4-.4-.8-.4-1.3 0-.9.7-1.6 1.6-1.6h2c3.3 0 6-2.7 6-6 0-4.4-4.5-8.4-10.4-8.4z"/>
+          <circle cx="7.5" cy="11.5" r="1.5" fill="currentColor"/>
+          <circle cx="10.5" cy="7.5" r="1.5" fill="currentColor"/>
+          <circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"/>
+          <circle cx="17.5" cy="12.5" r="1.5" fill="currentColor"/>
+        </svg>
+      </span>
+      <span class="tg-label">Pattern</span>
+      <span class="tg-arrow">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </span>
+    </div>
+
+    <div class="tg-item has-sub" id="item-sizes" onmouseenter="openSub('sizes')" onclick="openSub('sizes')">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>
+        </svg>
+      </span>
+      <span class="tg-label">Size</span>
+      <span class="tg-arrow">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </span>
+    </div>
+
+    <div class="tg-item has-sub" id="item-weights" onmouseenter="openSub('weights')" onclick="openSub('weights')">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v18"/><path d="M6 8l6-5 6 5"/><path d="M3 13l3-5 3 5a3 3 0 0 1-6 0z"/><path d="M15 13l3-5 3 5a3 3 0 0 1-6 0z"/>
+        </svg>
+      </span>
+      <span class="tg-label">Weight</span>
+      <span class="tg-arrow">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </span>
+    </div>
+
+    <div class="tg-separator"></div>
+
+    <div class="tg-item" onmouseenter="closeSub()" onclick="dispatchCarpetCmd('flatten')">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12h18"/><path d="M7 8l-4 4 4 4"/><path d="M17 8l4 4-4 4"/>
+        </svg>
+      </span>
+      <span class="tg-label">Flatten Rug</span>
+    </div>
+
+    <div class="tg-item" onmouseenter="closeSub()" onclick="dispatchCarpetCmd('center')">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="8"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/>
+        </svg>
+      </span>
+      <span class="tg-label">Center Rug</span>
+    </div>
+
+    <div class="tg-separator"></div>
+
+    <div class="tg-item danger" onmouseenter="closeSub()" onclick="quitApp()">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </span>
+      <span class="tg-label">Exit</span>
+    </div>
+  </div>
+
+  <!-- FLYOUT SUBMENU (Opens beside main menu) -->
+  <div class="tg-panel" id="sub-menu" style="display:none;">
+    <div class="tg-scroll" id="sub-items"></div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    function sendLog(msg) {
+      try {
+        if (window.__TAURI__?.core?.invoke) {
+          window.__TAURI__.core.invoke('log_from_js', { msg: String(msg) }).catch(() => {});
+        } else if (window.__TAURI_INTERNALS__?.invoke) {
+          window.__TAURI_INTERNALS__.invoke('log_from_js', { msg: String(msg) }).catch(() => {});
+        }
+      } catch(e) {}
+    }
+    window.addEventListener('error', function(e) {
+      sendLog('[JS_ERR] ' + e.message + ' at ' + e.filename + ':' + e.lineno);
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      sendLog('[JS_REJECT] ' + (e.reason?.stack || e.reason));
+    });
+    window.addEventListener('DOMContentLoaded', function() {
+      sendLog('DOM fully loaded');
+    });
+    sendLog('DeskRug index.html initialized');
+
+    const listeners = [];
+
+    async function getTauri() {
+      if (window.__TAURI__) return window.__TAURI__;
+      for (let i = 0; i < 50; i++) {
+        await new Promise(r => setTimeout(r, 10));
+        if (window.__TAURI__) return window.__TAURI__;
+      }
+      return window.__TAURI__;
+    }
+
+    window.halim = {
+      setIgnoreMouse: function(ignore) {
+        if (window.isCustomMenuOpen && ignore) {
+          // Keep mouse events enabled for the Telegram menu!
+          return;
+        }
+        if (window.__TAURI__?.core?.invoke) {
+          window.__TAURI__.core.invoke('set_ignore_mouse', { ignore: !!ignore }).catch(console.error);
+        }
+      },
+      showMenu: function(e) {
+        let x = (e && e.clientX != null) ? e.clientX : lastPointerX;
+        let y = (e && e.clientY != null) ? e.clientY : lastPointerY;
+        openCustomMenuAt(x, y, false);
+      },
+      saveState: function(state) {
+        if (window.__TAURI__?.core?.invoke) {
+          window.__TAURI__.core.invoke('save_state', { state }).catch(console.error);
+        }
+      },
+      loadState: async function() {
+        const tauri = await getTauri();
+        if (tauri?.core?.invoke) {
+          try {
+            return await tauri.core.invoke('load_state');
+          } catch (e) {
+            return null;
+          }
+        }
+        return null;
+      },
+      reportState: function(state) {
+        if (state) {
+          if (state.style) currentState.style = state.style;
+          if (state.size) currentState.size = state.size;
+          if (state.weight) currentState.weight = state.weight;
+          if (window.__TAURI__?.core?.invoke) {
+            window.__TAURI__.core.invoke('report_state', { state }).catch(() => {});
+          }
+        }
+      },
+      onCommand: function(fn) {
+        listeners.push(fn);
+      }
+    };
+
+    function attachListener() {
+      if (window.__TAURI__?.event?.listen) {
+        window.__TAURI__.event.listen('command', function(event) {
+          const payload = event.payload;
+          if (payload && payload.cmd) {
+            for (let i = 0; i < listeners.length; i++) {
+              listeners[i](payload.cmd, payload.arg);
+            }
+          }
+        });
+        window.__TAURI__.event.listen('open_custom_menu', function(event) {
+          const isTray = event?.payload?.is_tray !== false;
+          openCustomMenuAt(window.innerWidth - 230, window.innerHeight - 50, isTray);
+        });
+      } else {
+        setTimeout(attachListener, 10);
+      }
+    }
+    attachListener();
+
+    window.dispatchCarpetCmd = function(cmd, arg) {
+      closeCustomMenu();
+      for (let i = 0; i < listeners.length; i++) {
+        listeners[i](cmd, arg);
+      }
+    };
+  })();
+
+  // MENU STATE & CONTROLLER
+  let currentState = { style: 'tabriz', size: 'orta', weight: 'normal' };
+  let currentSub = null;
+
+  const STYLES = [
+    { id: 'tabriz', label: 'Tabriz' },
+    { id: 'nain', label: 'Nain' },
+    { id: 'heriz', label: 'Heriz' },
+    { id: 'kilim', label: 'Kilim' },
+    { id: 'buta', label: 'Paisley (Buta)' },
+    { id: 'gabbe', label: 'Gabbeh' },
+    { id: 'av', label: 'Hunting (Av)' },
+    { id: 'bahce', label: 'Garden (Bahce)' },
+    { id: 'kum', label: 'Qom' },
+    { id: 'turkmen', label: 'Turkmen' },
+    { id: 'klasik', label: 'Classic' },
+    { id: 'lacivert', label: 'Navy' },
+    { id: 'zumrut', label: 'Emerald' },
+    { id: 'buyukdalga', label: 'Great Wave' },
+    { id: 'zen', label: 'Zen' }
+  ];
+
+  const SIZES = [
+    { id: 'kucuk', label: 'Small' },
+    { id: 'orta', label: 'Medium' },
+    { id: 'buyuk', label: 'Large' }
+  ];
+
+  const WEIGHTS = [
+    { id: 'hafif', label: 'Light' },
+    { id: 'normal', label: 'Normal' },
+    { id: 'agir', label: 'Heavy' }
+  ];
+
+  let lastPointerX = Math.round(window.innerWidth / 2);
+  let lastPointerY = Math.round(window.innerHeight / 2);
+  window.addEventListener('pointermove', function(e) {
+    lastPointerX = e.clientX;
+    lastPointerY = e.clientY;
+  }, { passive: true });
+  window.addEventListener('contextmenu', function(e) {
+    lastPointerX = e.clientX;
+    lastPointerY = e.clientY;
+  }, true);
+
+  const overlay = document.getElementById('tg-menu-overlay');
+  const mainMenu = document.getElementById('main-menu');
+  const subPanel = document.getElementById('sub-menu');
+  const subItems = document.getElementById('sub-items');
+
+  window.isCustomMenuOpen = false;
+  let lastMenuOpenTime = 0;
+
+  function handleBackdropClick(e) {
+    if (Date.now() - lastMenuOpenTime < 250) {
+      return;
+    }
+    closeCustomMenu();
+  }
+
+  function openCustomMenuAt(clientX, clientY, isTray) {
+    const now = Date.now();
+    if (isTray && window.isCustomMenuOpen) {
+      if (now - lastMenuOpenTime < 350) {
+        return;
+      }
+      closeCustomMenu();
+      return;
+    }
+    window.isCustomMenuOpen = true;
+    lastMenuOpenTime = now;
+    closeSub();
+    overlay.style.display = 'block';
+
+    if (isTray) {
+      // Dock right above taskbar in the bottom-right corner!
+      mainMenu.style.left = 'auto';
+      mainMenu.style.right = '12px';
+      mainMenu.style.top = 'auto';
+      mainMenu.style.bottom = '48px';
+    } else {
+      // Position at cursor
+      let left = (clientX != null) ? clientX : lastPointerX;
+      let top = (clientY != null) ? clientY : lastPointerY;
+      if (left + 230 > window.innerWidth - 10) {
+        left = window.innerWidth - 240;
+      }
+      if (top + 240 > window.innerHeight - 40) {
+        top = window.innerHeight - 250;
+      }
+      mainMenu.style.right = 'auto';
+      mainMenu.style.bottom = 'auto';
+      mainMenu.style.left = Math.max(10, left) + 'px';
+      mainMenu.style.top = Math.max(10, top) + 'px';
+    }
+
+    if (window.__TAURI__?.core?.invoke) {
+      window.__TAURI__.core.invoke('set_menu_mode', { open: true }).catch(console.error);
+    }
+  }
+
+  function closeCustomMenu() {
+    window.isCustomMenuOpen = false;
+    closeSub();
+    overlay.style.display = 'none';
+    if (window.__TAURI__?.core?.invoke) {
+      window.__TAURI__.core.invoke('set_menu_mode', { open: false }).catch(() => {});
+    } else if (window.__TAURI_INTERNALS__?.invoke) {
+      window.__TAURI_INTERNALS__.invoke('set_menu_mode', { open: false }).catch(() => {});
+    }
+  }
+
+  function openSub(name) {
+    currentSub = name;
+    document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('active-sub'));
+    const parentItem = document.getElementById('item-' + name);
+    if (parentItem) parentItem.classList.add('active-sub');
+
+    let items = [];
+    let cmdType = '';
+    let activeId = '';
+
+    if (name === 'styles') {
+      items = STYLES;
+      cmdType = 'style';
+      activeId = currentState.style;
+    } else if (name === 'sizes') {
+      items = SIZES;
+      cmdType = 'size';
+      activeId = currentState.size;
+    } else if (name === 'weights') {
+      items = WEIGHTS;
+      cmdType = 'weight';
+      activeId = currentState.weight;
+    }
+
+    subItems.innerHTML = items.map(item => `
+      <div class="tg-item" onclick="selectSubCommand('${cmdType}', '${item.id}')">
+        <span class="tg-check">${item.id === activeId ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5288c1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</span>
+        <span class="tg-label">${item.label}</span>
+      </div>
+    `).join('');
+
+    const parentRect = parentItem.getBoundingClientRect();
+    const mainRect = mainMenu.getBoundingClientRect();
+
+    // Position flyout submenu cleanly to the side of the main menu
+    if (mainRect.right + 225 <= window.innerWidth) {
+      subPanel.style.left = Math.round(mainRect.right + 6) + 'px';
+      subPanel.style.right = 'auto';
+    } else {
+      subPanel.style.left = Math.round(mainRect.left - 222) + 'px';
+      subPanel.style.right = 'auto';
+    }
+
+    let subHeight = Math.min(345, items.length * 34 + 14);
+    let topPos = parentRect.top - 4;
+    if (topPos + subHeight > window.innerHeight - 10) {
+      topPos = Math.max(10, window.innerHeight - subHeight - 10);
+    }
+    if (topPos < 10) topPos = 10;
+    subPanel.style.top = topPos + 'px';
+    subPanel.style.bottom = 'auto';
+    subPanel.style.display = 'flex';
+  }
+
+  function closeSub() {
+    currentSub = null;
+    document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('active-sub'));
+    subPanel.style.display = 'none';
+  }
+
+  function selectSubCommand(cmd, arg) {
+    currentState[cmd] = arg;
+    dispatchCarpetCmd(cmd, arg);
+  }
+
+  function quitApp() {
+    try {
+      if (window.__TAURI__?.core?.invoke) {
+        window.__TAURI__.core.invoke('quit_app');
+      } else if (window.__TAURI_INTERNALS__?.invoke) {
+        window.__TAURI_INTERNALS__.invoke('quit_app');
+      }
+    } catch (e) {}
+    window.close();
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeCustomMenu();
+    }
+  });
+
+  // Restore full native sharpness and quality
+  try {
+    localStorage.removeItem('dc-quality');
+  } catch(e) {}
+</script>
+<script src="./bundle.js"></script>
+</body>
+</html>

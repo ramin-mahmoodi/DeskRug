@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Desktop Carpet Menu</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent !important;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Tahoma, sans-serif;
+    font-size: 13px;
+    color: #e4ecf2;
+  }
+  .stage {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background: transparent;
+  }
+  .tg-panel {
+    position: absolute;
+    background: rgba(23, 33, 43, 0.96);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.35);
+    border-radius: 10px;
+    padding: 5px;
+    width: 215px;
+    display: flex;
+    flex-direction: column;
+    animation: tgFadeIn 0.12s cubic-bezier(0.2, 0, 0, 1);
+  }
+  @keyframes tgFadeIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Main menu docked on the right */
+  #main-menu {
+    right: 8px;
+    bottom: 8px;
+  }
+
+  /* Flyout submenu docked to the left of the main menu */
+  #sub-menu {
+    right: 231px;
+    bottom: 8px;
+    display: none;
+    max-height: 350px;
+  }
+
+  .tg-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 1px;
+    max-height: 335px;
+  }
+  .tg-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+  .tg-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 4px;
+  }
+  .tg-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .tg-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.08s ease, color 0.08s ease;
+    white-space: nowrap;
+    color: #e4ecf2;
+    min-height: 32px;
+  }
+  .tg-item:hover, .tg-item.active-sub {
+    background: rgba(82, 136, 193, 0.22);
+    color: #ffffff;
+  }
+  .tg-item.danger:hover {
+    background: rgba(234, 67, 53, 0.22);
+    color: #ff6b6b;
+  }
+  .tg-label {
+    flex: 1;
+    font-weight: 400;
+  }
+  .tg-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    opacity: 0.85;
+    flex-shrink: 0;
+  }
+  .tg-item:hover .tg-icon, .tg-item.active-sub .tg-icon {
+    opacity: 1;
+  }
+  .tg-arrow {
+    display: inline-flex;
+    align-items: center;
+    opacity: 0.5;
+    margin-right: 2px;
+  }
+  .tg-separator {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.07);
+    margin: 4px 6px;
+    flex-shrink: 0;
+  }
+  .tg-check {
+    width: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <!-- MAIN MENU -->
+  <div class="tg-panel" id="main-menu">
+    <div class="tg-item has-sub" id="item-styles" onmouseenter="openSub('styles')" onclick="openSub('styles')">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.4-.4-.8-.4-1.3 0-.9.7-1.6 1.6-1.6h2c3.3 0 6-2.7 6-6 0-4.4-4.5-8.4-10.4-8.4z"/>
+          <circle cx="7.5" cy="11.5" r="1.5" fill="currentColor"/>
+          <circle cx="10.5" cy="7.5" r="1.5" fill="currentColor"/>
+          <circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"/>
+          <circle cx="17.5" cy="12.5" r="1.5" fill="currentColor"/>
+        </svg>
+      </span>
+      <span class="tg-label">طرح فرش</span>
+      <span class="tg-arrow">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </span>
+    </div>
+
+    <div class="tg-item has-sub" id="item-sizes" onmouseenter="openSub('sizes')" onclick="openSub('sizes')">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>
+        </svg>
+      </span>
+      <span class="tg-label">اندازه فرش</span>
+      <span class="tg-arrow">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </span>
+    </div>
+
+    <div class="tg-item has-sub" id="item-weights" onmouseenter="openSub('weights')" onclick="openSub('weights')">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v18"/><path d="M6 8l6-5 6 5"/><path d="M3 13l3-5 3 5a3 3 0 0 1-6 0z"/><path d="M15 13l3-5 3 5a3 3 0 0 1-6 0z"/>
+        </svg>
+      </span>
+      <span class="tg-label">وزن و لطافت</span>
+      <span class="tg-arrow">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </span>
+    </div>
+
+    <div class="tg-separator"></div>
+
+    <div class="tg-item" onmouseenter="closeSub()" onclick="sendAction('flatten')">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12h18"/><path d="M7 8l-4 4 4 4"/><path d="M17 8l4 4-4 4"/>
+        </svg>
+      </span>
+      <span class="tg-label">صاف کردن فرش</span>
+    </div>
+
+    <div class="tg-item" onmouseenter="closeSub()" onclick="sendAction('center')">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="8"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/>
+        </svg>
+      </span>
+      <span class="tg-label">قرار دادن در مرکز</span>
+    </div>
+
+    <div class="tg-separator"></div>
+
+    <div class="tg-item danger" onmouseenter="closeSub()" onclick="sendAction('quit')">
+      <span class="tg-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </span>
+      <span class="tg-label">خروج از برنامه</span>
+    </div>
+  </div>
+
+  <!-- FLYOUT SUBMENU (Opens side-by-side to the left) -->
+  <div class="tg-panel" id="sub-menu">
+    <div class="tg-scroll" id="sub-items"></div>
+  </div>
+</div>
+
+<script>
+  let currentState = { style: 'tabriz', size: 'orta', weight: 'normal' };
+  let currentSub = null;
+
+  const STYLES = [
+    { id: 'tabriz', label: 'تبریز (Tabriz)' },
+    { id: 'nain', label: 'نائین (Nain)' },
+    { id: 'heriz', label: 'هریز (Heriz)' },
+    { id: 'kilim', label: 'گلیم (Kilim)' },
+    { id: 'buta', label: 'بته جقه (Buta)' },
+    { id: 'gabbe', label: 'گبه (Gabbe)' },
+    { id: 'av', label: 'شکارگاه (Av)' },
+    { id: 'bahce', label: 'باغچه (Bahce)' },
+    { id: 'kum', label: 'قم (Kum)' },
+    { id: 'turkmen', label: 'ترکمن (Turkmen)' },
+    { id: 'klasik', label: 'کلاسیک (Klasik)' },
+    { id: 'lacivert', label: 'لاجوردی (Lacivert)' },
+    { id: 'zumrut', label: 'زمرد (Zumrut)' },
+    { id: 'buyukdalga', label: 'موج بزرگ کاناگاوا' },
+    { id: 'zen', label: 'ذن ژاپنی (Zen)' }
+  ];
+
+  const SIZES = [
+    { id: 'kucuk', label: 'کوچک (Small)' },
+    { id: 'orta', label: 'متوسط (Medium)' },
+    { id: 'buyuk', label: 'بزرگ (Large)' }
+  ];
+
+  const WEIGHTS = [
+    { id: 'hafif', label: 'سبک (Light)' },
+    { id: 'normal', label: 'معمولی (Normal)' },
+    { id: 'agir', label: 'سنگین (Heavy)' }
+  ];
+
+  const subPanel = document.getElementById('sub-menu');
+  const subItems = document.getElementById('sub-items');
+
+  function openSub(name) {
+    currentSub = name;
+    document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('active-sub'));
+    const parentItem = document.getElementById('item-' + name);
+    if (parentItem) parentItem.classList.add('active-sub');
+
+    let items = [];
+    let cmdType = '';
+    let activeId = '';
+    let topOffset = 8;
+
+    if (name === 'styles') {
+      items = STYLES;
+      cmdType = 'style';
+      activeId = currentState.style;
+      topOffset = 8;
+    } else if (name === 'sizes') {
+      items = SIZES;
+      cmdType = 'size';
+      activeId = currentState.size;
+      topOffset = 44;
+    } else if (name === 'weights') {
+      items = WEIGHTS;
+      cmdType = 'weight';
+      activeId = currentState.weight;
+      topOffset = 80;
+    }
+
+    subItems.innerHTML = items.map(item => `
+      <div class="tg-item" onclick="selectCommand('${cmdType}', '${item.id}')">
+        <span class="tg-check">${item.id === activeId ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5288c1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</span>
+        <span class="tg-label">${item.label}</span>
+      </div>
+    `).join('');
+
+    const mainEl = document.getElementById('main-menu');
+    const parentRect = parentItem.getBoundingClientRect();
+    const mainRect = mainEl.getBoundingClientRect();
+
+    subPanel.style.right = (window.innerWidth - mainRect.left + 6) + 'px';
+    let topPos = parentRect.top;
+    if (topPos + 340 > window.innerHeight) {
+      topPos = Math.max(8, window.innerHeight - 350);
+    }
+    subPanel.style.top = topPos + 'px';
+    subPanel.style.bottom = 'auto';
+    subPanel.style.display = 'flex';
+  }
+
+  function closeSub() {
+    currentSub = null;
+    document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('active-sub'));
+    subPanel.style.display = 'none';
+  }
+
+  document.addEventListener('pointerdown', function(e) {
+    if (!e.target.closest('.tg-panel')) {
+      closeSub();
+      if (window.__TAURI__?.core?.invoke) {
+        window.__TAURI__.core.invoke('hide_menu').catch(console.error);
+      }
+    }
+  });
+
+  function selectCommand(cmd, arg) {
+    currentState[cmd] = arg;
+    closeSub();
+    if (window.__TAURI__?.core?.invoke) {
+      window.__TAURI__.core.invoke('send_carpet_cmd', { cmd, arg }).catch(console.error);
+    }
+  }
+
+  function sendAction(action) {
+    closeSub();
+    if (action === 'quit') {
+      if (window.__TAURI__?.core?.invoke) {
+        window.__TAURI__.core.invoke('quit_app').catch(console.error);
+      }
+    } else {
+      if (window.__TAURI__?.core?.invoke) {
+        window.__TAURI__.core.invoke('send_carpet_cmd', { cmd: action, arg: null }).catch(console.error);
+      }
+    }
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeSub();
+      if (window.__TAURI__?.core?.invoke) {
+        window.__TAURI__.core.invoke('hide_menu').catch(console.error);
+      }
+    }
+  });
+
+  async function init() {
+    if (window.__TAURI__?.core?.invoke) {
+      try {
+        const s = await window.__TAURI__.core.invoke('get_current_state');
+        if (s) {
+          if (s.style) currentState.style = s.style;
+          if (s.size) currentState.size = s.size;
+          if (s.weight) currentState.weight = s.weight;
+        }
+      } catch (e) {}
+    }
+    if (window.__TAURI__?.event?.listen) {
+      window.__TAURI__.event.listen('carpet_state_changed', function(ev) {
+        if (ev.payload) {
+          const s = ev.payload;
+          if (s.style) currentState.style = s.style;
+          if (s.size) currentState.size = s.size;
+          if (s.weight) currentState.weight = s.weight;
+          if (currentSub) openSub(currentSub);
+        }
+      });
+      window.__TAURI__.event.listen('reset_menu_view', function() {
+        closeSub();
+      });
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

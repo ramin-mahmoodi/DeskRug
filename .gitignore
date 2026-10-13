@@ -1,0 +1,28 @@
+# Rust / Cargo
+/src-tauri/target/
+**/target/
+Cargo.lock
+
+# Executables
+*.exe
+
+# Logs
+*.log
+logs/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# Temporary / Scratch
+temp-clone/
+out.txt
+*.local
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.sw?
+.DS_Store
