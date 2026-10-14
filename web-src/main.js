@@ -122,6 +122,14 @@ function drawWallpaper() {
       const scale = Math.min(cw / iw, ch / ih);
       const dw = iw * scale, dh = ih * scale;
       ctx.drawImage(wallImg, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+    } else if (mode === 'tile') {
+      const ptrn = ctx.createPattern(wallImg, 'repeat');
+      if (ptrn) {
+        ctx.fillStyle = ptrn;
+        ctx.fillRect(0, 0, cw, ch);
+      } else {
+        ctx.drawImage(wallImg, 0, 0, iw, ih);
+      }
     } else {
       // Windows default: 'fill' (Cover entire screen maintaining aspect ratio, centered)
       const scale = Math.max(cw / iw, ch / ih);
@@ -148,7 +156,19 @@ function drawWallpaper() {
 async function setWallpaper(info) {
   wallInfo = info;
   wallImg = null;
-  if (info?.bytes) {
+  if (info?.dataUri) {
+    try {
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = (e) => reject(e);
+        img.src = info.dataUri;
+      });
+      wallImg = img;
+    } catch (e) {
+      console.error('wallpaper image dataUri', e);
+    }
+  } else if (info?.bytes) {
     try {
       const data = (info.bytes instanceof Uint8Array || info.bytes instanceof ArrayBuffer)
         ? info.bytes
@@ -170,16 +190,23 @@ async function setWallpaper(info) {
   wake();
 }
 
+let wallpaperInFlight = null;
 async function ensureWallpaper() {
   if (wallImg) return;
-  if (api?.getWallpaper) {
-    try {
-      const info = await api.getWallpaper();
-      if (info) await setWallpaper(info);
-    } catch (e) {
-      console.error('ensureWallpaper failed', e);
+  if (wallpaperInFlight) return wallpaperInFlight;
+  wallpaperInFlight = (async () => {
+    if (api?.getWallpaper) {
+      try {
+        const info = await api.getWallpaper();
+        if (info) await setWallpaper(info);
+      } catch (e) {
+        console.error('ensureWallpaper failed', e);
+      }
     }
-  }
+  })().finally(() => {
+    wallpaperInFlight = null;
+  });
+  return wallpaperInFlight;
 }
 
 const invisibleUniforms = {
@@ -378,7 +405,6 @@ function onCursor(p) {
 }
 
 window.addEventListener('pointermove', (e) => {
-  if (window.isCustomMenuOpen) return;
   mouse = { x: e.clientX, y: e.clientY };
   if (grab && e.buttons === 0) { endGrab(); return; } // missed a mouse-up
   if (grab) { wake(); return; }
@@ -386,7 +412,6 @@ window.addEventListener('pointermove', (e) => {
 });
 
 window.addEventListener('pointerdown', (e) => {
-  if (window.isCustomMenuOpen) return;
   if (e.button !== 0) return;
   mouse = { x: e.clientX, y: e.clientY };
   if (!startGrab(e.clientX, e.clientY)) return;
@@ -423,18 +448,17 @@ function endGrab() {
   document.body.classList.remove('grabbing');
   setOver(!!hitTest(mouse.x, mouse.y));
   wake();
+  saveNow();
 }
 window.addEventListener('pointerup', endGrab);
 window.addEventListener('pointercancel', endGrab);
 window.addEventListener('blur', endGrab);
 
 window.addEventListener('dblclick', (e) => {
-  if (window.isCustomMenuOpen) return;
   if (hitTest(e.clientX, e.clientY)) flatten();
 });
 
 window.addEventListener('wheel', (e) => {
-  if (window.isCustomMenuOpen) return;
   if (!hitTest(e.clientX, e.clientY)) return;
   e.preventDefault();
   if (e.ctrlKey) {
@@ -454,7 +478,6 @@ window.addEventListener('wheel', (e) => {
 
 window.addEventListener('contextmenu', (e) => {
   e.preventDefault();
-  if (hitTest(e.clientX, e.clientY)) api?.showMenu(e);
 });
 
 window.__resetHover = () => {
@@ -586,15 +609,19 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// ---------- persistence & commands ----------
 let saveTimer = 0;
 function save() {
   if (!api) return;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    api.saveState({ ...state, pos: Array.from(cloth.pos, (v) => Math.round(v * 10) / 10), screen: [W, H] });
-  }, 300);
+  saveTimer = setTimeout(saveNow, 300);
 }
+
+function saveNow() {
+  if (!api || !cloth) return;
+  clearTimeout(saveTimer);
+  api.saveState({ ...state, pos: Array.from(cloth.pos, (v) => Math.round(v * 10) / 10), screen: [W, H] });
+}
+window.addEventListener('beforeunload', saveNow);
 
 function applyHidden() {
   front.visible = back.visible = !state.hidden;
@@ -640,6 +667,7 @@ function command(cmd, arg) {
     case 'cursor': onCursor(arg); return;
     case 'redraw': wake(); return;
     case 'reset-input': endGrab(); setOver(!!hitTest(mouse.x, mouse.y), true); return;
+    case 'save': saveNow(); return;
   }
   save();
   api?.reportState({ style: state.style, size: state.size, weight: state.weight });
@@ -677,8 +705,6 @@ if (!api) window.__dcCommand = command; // plain-browser preview: lets a test pa
   }
 
   api?.reportState({ style: state.style, size: state.size, weight: state.weight });
-  // Prefetch desktop wallpaper so switching to invisible is instant
-  ensureWallpaper();
 })();
 
 // test hooks for automated preview

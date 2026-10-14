@@ -26,6 +26,10 @@ mod win32 {
     pub const SM_CXSCREEN: i32 = 0;
     pub const SM_CYSCREEN: i32 = 1;
     pub const SM_SWAPBUTTON: i32 = 23;
+    pub const SM_XVIRTUALSCREEN: i32 = 76;
+    pub const SM_YVIRTUALSCREEN: i32 = 77;
+    pub const SM_CXVIRTUALSCREEN: i32 = 78;
+    pub const SM_CYVIRTUALSCREEN: i32 = 79;
     pub const GA_ROOT: UINT = 2;
 
     pub const SWP_NOACTIVATE: UINT = 0x0010;
@@ -73,6 +77,26 @@ mod win32 {
             ProcessInformation: *const c_void,
             ProcessInformationSize: u32,
         ) -> BOOL;
+    }
+
+    #[link(name = "advapi32")]
+    unsafe extern "system" {
+        pub fn RegOpenKeyExW(
+            hKey: isize,
+            lpSubKey: *const u16,
+            ulOptions: u32,
+            samDesired: u32,
+            phkResult: *mut isize,
+        ) -> i32;
+        pub fn RegQueryValueExW(
+            hKey: isize,
+            lpValueName: *const u16,
+            lpReserved: *mut u32,
+            lpType: *mut u32,
+            lpData: *mut u8,
+            lpcbData: *mut u32,
+        ) -> i32;
+        pub fn RegCloseKey(hKey: isize) -> i32;
     }
 }
 
@@ -128,7 +152,6 @@ struct TrayState(#[allow(dead_code)] tauri::tray::TrayIcon);
 
 // Global atomic flags
 static IS_IGNORING_MOUSE: AtomicBool = AtomicBool::new(true);
-static IS_MENU_OPEN: AtomicBool = AtomicBool::new(false);
 
 static APP_STATE: Mutex<Option<serde_json::Value>> = Mutex::new(None);
 
@@ -156,6 +179,14 @@ fn atomic_save_state(state: &serde_json::Value) {
     if let Ok(json_str) = serde_json::to_string(state) {
         if std::fs::write(&tmp_path, json_str).is_ok() {
             let _ = std::fs::rename(&tmp_path, &path);
+        }
+    }
+}
+
+fn merge_json(target: &mut serde_json::Value, source: &serde_json::Value) {
+    if let (Some(t), Some(s)) = (target.as_object_mut(), source.as_object()) {
+        for (k, v) in s {
+            t.insert(k.clone(), v.clone());
         }
     }
 }
@@ -212,10 +243,6 @@ fn log_from_js(msg: String) {
 
 #[tauri::command]
 fn set_ignore_mouse(app: tauri::AppHandle, ignore: bool) {
-    if IS_MENU_OPEN.load(Ordering::Relaxed) && ignore {
-        // Do NOT ignore mouse while Telegram menu is open!
-        return;
-    }
     IS_IGNORING_MOUSE.store(ignore, Ordering::Relaxed);
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_ignore_cursor_events(ignore);
@@ -224,10 +251,15 @@ fn set_ignore_mouse(app: tauri::AppHandle, ignore: bool) {
 
 #[tauri::command]
 fn save_state(state: serde_json::Value) {
-    if let Ok(mut s) = APP_STATE.lock() {
-        *s = Some(state.clone());
-    }
-    atomic_save_state(&state);
+    let to_save = if let Ok(mut s) = APP_STATE.lock() {
+        let mut cur = s.take().unwrap_or_else(|| serde_json::json!({}));
+        merge_json(&mut cur, &state);
+        *s = Some(cur.clone());
+        cur
+    } else {
+        state
+    };
+    atomic_save_state(&to_save);
 }
 
 #[tauri::command]
@@ -237,7 +269,9 @@ fn load_state() -> Option<serde_json::Value> {
         let val: Option<serde_json::Value> = serde_json::from_str(&data).ok();
         if let Some(ref state) = val {
             if let Ok(mut s) = APP_STATE.lock() {
-                *s = Some(state.clone());
+                let mut cur = s.take().unwrap_or_else(|| serde_json::json!({}));
+                merge_json(&mut cur, state);
+                *s = Some(cur);
             }
             update_tray_checks(state);
         }
@@ -262,7 +296,9 @@ fn quit_app(app: tauri::AppHandle) {
 #[tauri::command]
 fn report_state(app: tauri::AppHandle, state: serde_json::Value) {
     if let Ok(mut s) = APP_STATE.lock() {
-        *s = Some(state.clone());
+        let mut cur = s.take().unwrap_or_else(|| serde_json::json!({}));
+        merge_json(&mut cur, &state);
+        *s = Some(cur);
     }
     update_tray_checks(&state);
     let _ = app.emit("carpet_state_changed", state);
@@ -273,26 +309,126 @@ fn get_current_state() -> Option<serde_json::Value> {
     APP_STATE.lock().ok().and_then(|s| s.clone())
 }
 
-#[tauri::command]
-fn set_menu_mode(app: tauri::AppHandle, open: bool) {
-    IS_MENU_OPEN.store(open, Ordering::Relaxed);
-    if open {
-        IS_IGNORING_MOUSE.store(false, Ordering::Relaxed);
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.set_ignore_cursor_events(false);
+fn to_base64(data: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = chunk.get(1).copied().unwrap_or(0) as u32;
+        let b2 = chunk.get(2).copied().unwrap_or(0) as u32;
+        let triple = (b0 << 16) | (b1 << 8) | b2;
+
+        out.push(TABLE[((triple >> 18) & 0x3F) as usize] as char);
+        out.push(TABLE[((triple >> 12) & 0x3F) as usize] as char);
+        if chunk.len() > 1 {
+            out.push(TABLE[((triple >> 6) & 0x3F) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(TABLE[(triple & 0x3F) as usize] as char);
+        } else {
+            out.push('=');
         }
     }
-    // Note: When closing menu, JS immediately re-evaluates hover and calls set_ignore_mouse
+    out
 }
 
-#[tauri::command]
-fn show_menu(app: tauri::AppHandle) {
-    set_menu_mode(app.clone(), true);
-    let _ = app.emit("open_custom_menu", serde_json::json!({ "is_tray": false }));
+#[cfg(target_os = "windows")]
+fn read_reg_sz(sub_key: &str, value_name: &str) -> Option<String> {
+    unsafe {
+        let sub_key_w: Vec<u16> = sub_key.encode_utf16().chain(std::iter::once(0)).collect();
+        let value_w: Vec<u16> = value_name.encode_utf16().chain(std::iter::once(0)).collect();
+        let mut hkey: isize = 0;
+        const HKEY_CURRENT_USER: isize = 0x80000001u32 as i32 as isize;
+        const KEY_READ: u32 = 0x20019;
+        if win32::RegOpenKeyExW(HKEY_CURRENT_USER, sub_key_w.as_ptr(), 0, KEY_READ, &mut hkey) != 0 {
+            return None;
+        }
+        let mut buf_len: u32 = 512;
+        let mut buf = vec![0u8; buf_len as usize];
+        let mut val_type: u32 = 0;
+        let res = win32::RegQueryValueExW(
+            hkey,
+            value_w.as_ptr(),
+            std::ptr::null_mut(),
+            &mut val_type,
+            buf.as_mut_ptr(),
+            &mut buf_len,
+        );
+        win32::RegCloseKey(hkey);
+        if res == 0 && buf_len > 0 {
+            let u16_slice: &[u16] = std::slice::from_raw_parts(buf.as_ptr() as *const u16, (buf_len / 2) as usize);
+            let s = String::from_utf16_lossy(u16_slice);
+            return Some(s.trim_end_matches('\0').trim().to_string());
+        }
+        None
+    }
 }
 
-#[tauri::command]
-fn get_wallpaper() -> Result<serde_json::Value, String> {
+#[cfg(target_os = "windows")]
+fn get_wallpaper_mode() -> &'static str {
+    let style = read_reg_sz("Control Panel\\Desktop", "WallpaperStyle").unwrap_or_default();
+    let tile = read_reg_sz("Control Panel\\Desktop", "TileWallpaper").unwrap_or_default();
+    match style.as_str() {
+        "10" => "fill",
+        "6" => "fit",
+        "2" => "stretch",
+        "22" => "fill",
+        "0" => {
+            if tile == "1" {
+                "tile"
+            } else {
+                "center"
+            }
+        }
+        _ => {
+            if tile == "1" {
+                "tile"
+            } else {
+                "fill"
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn get_wallpaper_color() -> String {
+    if let Some(s) = read_reg_sz("Control Panel\\Colors", "Background") {
+        let parts: Vec<&str> = s.split_whitespace().collect();
+        if parts.len() == 3 {
+            if let (Ok(r), Ok(g), Ok(b)) = (
+                parts[0].parse::<u8>(),
+                parts[1].parse::<u8>(),
+                parts[2].parse::<u8>(),
+            ) {
+                return format!("#{:02x}{:02x}{:02x}", r, g, b);
+            }
+        }
+    }
+    "#000000".to_string()
+}
+
+fn get_screen_bounds() -> (i32, i32, i32, i32) {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        let vx = win32::GetSystemMetrics(win32::SM_XVIRTUALSCREEN);
+        let vy = win32::GetSystemMetrics(win32::SM_YVIRTUALSCREEN);
+        let vw = win32::GetSystemMetrics(win32::SM_CXVIRTUALSCREEN);
+        let vh = win32::GetSystemMetrics(win32::SM_CYVIRTUALSCREEN);
+        if vw > 0 && vh > 0 {
+            (vx, vy, vw, vh)
+        } else {
+            (0, 0, win32::GetSystemMetrics(win32::SM_CXSCREEN), win32::GetSystemMetrics(win32::SM_CYSCREEN))
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        (0, 0, 1920, 1080)
+    }
+}
+
+fn get_wallpaper_info() -> Result<serde_json::Value, String> {
     if let Some(app_data) = std::env::var_os("APPDATA") {
         let path = std::path::PathBuf::from(app_data)
             .join("Microsoft")
@@ -300,20 +436,34 @@ fn get_wallpaper() -> Result<serde_json::Value, String> {
             .join("Themes")
             .join("TranscodedWallpaper");
         if path.exists() {
-            if let Ok(bytes) = std::fs::read(path) {
-                let screen_w = unsafe { win32::GetSystemMetrics(win32::SM_CXSCREEN) };
-                let screen_h = unsafe { win32::GetSystemMetrics(win32::SM_CYSCREEN) };
+            if let Ok(bytes) = std::fs::read(&path) {
+                let (x, y, w, h) = get_screen_bounds();
+                #[cfg(target_os = "windows")]
+                let mode = get_wallpaper_mode();
+                #[cfg(not(target_os = "windows"))]
+                let mode = "fill";
+                #[cfg(target_os = "windows")]
+                let color = get_wallpaper_color();
+                #[cfg(not(target_os = "windows"))]
+                let color = "#000000".to_string();
+
+                let data_uri = format!("data:image/jpeg;base64,{}", to_base64(&bytes));
                 return Ok(serde_json::json!({
-                    "bytes": bytes,
-                    "mode": "fill",
-                    "color": "#000000",
-                    "bounds": { "x": 0, "y": 0, "width": screen_w, "height": screen_h },
-                    "workArea": { "x": 0, "y": 0, "width": screen_w, "height": screen_h }
+                    "dataUri": data_uri,
+                    "mode": mode,
+                    "color": color,
+                    "bounds": { "x": x, "y": y, "width": w, "height": h },
+                    "workArea": { "x": x, "y": y, "width": w, "height": h }
                 }));
             }
         }
     }
     Err("Wallpaper not found".into())
+}
+
+#[tauri::command]
+fn get_wallpaper() -> Result<serde_json::Value, String> {
+    get_wallpaper_info()
 }
 
 const SIZES_LIST: &[(&str, &str)] = &[
@@ -485,8 +635,6 @@ pub fn run() {
             load_state,
             report_state,
             get_current_state,
-            show_menu,
-            set_menu_mode,
             quit_app,
             get_wallpaper
         ]);
@@ -513,7 +661,12 @@ pub fn run() {
                 .on_menu_event(|app, event| {
                     let id = event.id().as_ref();
                     if id == "quit" {
-                        quit_app(app.clone());
+                        let _ = app.emit("command", serde_json::json!({ "cmd": "save", "arg": null }));
+                        let app_handle = app.clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(std::time::Duration::from_millis(60));
+                            quit_app(app_handle);
+                        });
                     } else if id == "flatten" {
                         let _ = app.emit("command", serde_json::json!({ "cmd": "flatten", "arg": null }));
                     } else if id == "center" {
@@ -580,20 +733,52 @@ pub fn run() {
                     if let Ok(hwnd_raw) = window.hwnd() {
                         let hwnd = hwnd_raw.0 as win32::HWND;
                         unsafe {
-                            let screen_w = win32::GetSystemMetrics(win32::SM_CXSCREEN);
-                            let screen_h = win32::GetSystemMetrics(win32::SM_CYSCREEN);
+                            let (x, y, w, h) = get_screen_bounds();
                             win32::SetWindowPos(
                                 hwnd,
                                 std::ptr::null_mut(),
-                                0,
-                                0,
-                                screen_w,
-                                screen_h,
+                                x,
+                                y,
+                                w,
+                                h,
                                 win32::SWP_NOACTIVATE | win32::SWP_SHOWWINDOW | win32::SWP_FRAMECHANGED,
                             );
                             win32::ShowWindow(hwnd, win32::SW_SHOWNOACTIVATE);
                         }
                     }
+
+                    // Dynamic wallpaper watcher (only checks when invisible pattern is selected)
+                    let handle_wallpaper = app_handle.clone();
+                    std::thread::spawn(move || {
+                        if let Some(app_data) = std::env::var_os("APPDATA") {
+                            let path = std::path::PathBuf::from(app_data)
+                                .join("Microsoft")
+                                .join("Windows")
+                                .join("Themes")
+                                .join("TranscodedWallpaper");
+                            let mut last_mtime = std::fs::metadata(&path).ok().and_then(|m| m.modified().ok());
+
+                            loop {
+                                std::thread::sleep(std::time::Duration::from_secs(5));
+                                let is_invisible = APP_STATE.lock().ok()
+                                    .and_then(|s| s.as_ref().and_then(|v| v.get("style").and_then(|st| st.as_str()).map(|st| st == "invisible")))
+                                    .unwrap_or(false);
+
+                                if is_invisible {
+                                    if let Ok(meta) = std::fs::metadata(&path) {
+                                        if let Ok(mtime) = meta.modified() {
+                                            if last_mtime.map_or(true, |last| mtime > last) {
+                                                last_mtime = Some(mtime);
+                                                if let Ok(info) = get_wallpaper_info() {
+                                                    let _ = handle_wallpaper.emit("command", serde_json::json!({ "cmd": "wallpaper", "arg": info }));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
 
                     // Send initial show & layout commands after page loads
                     let handle_clone = app_handle.clone();
