@@ -1,0 +1,685 @@
+import * as THREE from './vendor/three.module.js';
+import { Cloth } from './cloth.js';
+import { makeRugCanvases, STYLES, loadRugFonts } from './rugTexture.js';
+
+const api = window.halim || null; // provided by Electron preload; absent in a plain browser
+if (!api) {
+  document.body.classList.add('preview');
+  document.body.style.background =
+    'repeating-linear-gradient(0deg, rgba(0,0,0,.06) 0 2px, transparent 2px 46px),' +
+    'repeating-linear-gradient(90deg, rgba(0,0,0,.05) 0 1px, transparent 1px 260px),' +
+    'linear-gradient(#c8a073, #b98d5f)';
+}
+
+const SIZES = { kucuk: 380, orta: 520, buyuk: 700 };
+const ASPECT = 1.58;
+// How the rug feels under the cursor. follow: how fast the grabbed point chases the
+// cursor (lower = more lag), pin: how hard it pulls per solver pass, lift: max height.
+const WEIGHTS = {
+  hafif:  { follow: 36, pin: 0.65, lift: 155, gravity: 2200, friction: 0.6,  dragFriction: 0.95, pincap: 1.3 },
+  normal: { follow: 18, pin: 0.35, lift: 110, gravity: 3600, friction: 0.38, dragFriction: 0.90, pincap: 0.8 },
+  agir:   { follow: 8,  pin: 0.16, lift: 60,  gravity: 5600, friction: 0.18, dragFriction: 0.78, pincap: 0.4 },
+};
+
+let W = window.innerWidth, H = window.innerHeight;
+
+// ---------- three.js scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: true });
+// ---------- render quality ----------
+// The canvas covers the whole screen, so pixels are the main cost on the GPU. Cap the canvas at about 4 million
+// pixels (a 1440p screen at 100%), and step quality down by itself on computers that can't keep up.
+const PIXEL_BUDGET = 4.2e6;
+let quality = 0;
+try { quality = Math.min(3, Math.max(0, parseInt(localStorage.getItem('dc-quality') || '0', 10) || 0)); } catch {}
+function pixelRatio() {
+  const dpr = window.devicePixelRatio || 1;
+  const budget = Math.sqrt(PIXEL_BUDGET / Math.max(1, window.innerWidth * window.innerHeight));
+  const pr = Math.min(dpr, 2, Math.max(0.75, budget));
+  return pr * [1, 0.85, 0.72, 0.62][quality];
+}
+renderer.setPixelRatio(pixelRatio());
+renderer.setSize(W, H);
+renderer.setClearColor(0x000000, 0);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const CAM_D = 2400;
+const camera = new THREE.PerspectiveCamera(30, W / H, 10, 10000);
+
+scene.add(new THREE.HemisphereLight(0xfff6ea, 0x8a7560, 1.25));
+const sun = new THREE.DirectionalLight(0xfff3e0, 2.1);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 1.2;
+sun.shadow.radius = 6;
+scene.add(sun, sun.target);
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShadowMaterial({ opacity: 0.38 }));
+floor.receiveShadow = true;
+scene.add(floor);
+
+function layout() {
+  W = window.innerWidth; H = window.innerHeight;
+  renderer.setPixelRatio(pixelRatio());
+  renderer.setSize(W, H);
+  camera.aspect = W / H;
+  camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(H / 2 / CAM_D));
+  camera.position.set(0, 0, CAM_D);
+  camera.lookAt(0, 0, 0);
+  camera.updateProjectionMatrix();
+  floor.scale.set(W * 1.2, H * 1.2, 1);
+  const half = Math.max(W, H) * 0.6;
+  Object.assign(sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 10, far: 6000 });
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.position.set(-260, 420, 2000);
+  sun.target.position.set(0, 0, 0);
+}
+layout();
+
+// ---------- rug ----------
+let state = {
+  style: 'tabriz',
+  size: 'orta',
+  weight: 'normal',
+  hidden: false,
+};
+const W8 = () => WEIGHTS[state.weight] || WEIGHTS.normal;
+let cloth, geom, front, back, pick, textures = [];
+
+// ---------- the Invisible rug ----------
+// It shows the wallpaper pixel that is right behind each point of it, so whatever lies under it on the desktop
+// (icons, files) seems to vanish. Folds bend the picture a little and the edges catch a faint glint, so you can
+// still find it.
+let wallInfo = null, wallImg = null, wallTex = null;
+const wallCanvas = document.createElement('canvas');
+
+function drawWallpaper() {
+  const buf = new THREE.Vector2();
+  renderer.getDrawingBufferSize(buf);
+  const cw = Math.max(1, Math.round(buf.x));
+  const ch = Math.max(1, Math.round(buf.y));
+  wallCanvas.width = cw;
+  wallCanvas.height = ch;
+  const ctx = wallCanvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = wallInfo?.color || '#000';
+  ctx.fillRect(0, 0, cw, ch);
+
+  if (wallImg) {
+    const iw = wallImg.naturalWidth || wallImg.width;
+    const ih = wallImg.naturalHeight || wallImg.height;
+    const mode = wallInfo?.mode || 'fill';
+
+    if (mode === 'stretch') {
+      ctx.drawImage(wallImg, 0, 0, cw, ch);
+    } else if (mode === 'center') {
+      ctx.drawImage(wallImg, (cw - iw) / 2, (ch - ih) / 2, iw, ih);
+    } else if (mode === 'fit') {
+      const scale = Math.min(cw / iw, ch / ih);
+      const dw = iw * scale, dh = ih * scale;
+      ctx.drawImage(wallImg, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+    } else {
+      // Windows default: 'fill' (Cover entire screen maintaining aspect ratio, centered)
+      const scale = Math.max(cw / iw, ch / ih);
+      const dw = iw * scale, dh = ih * scale;
+      const dx = (cw - dw) / 2;
+      const dy = (ch - dh) / 2;
+      ctx.drawImage(wallImg, dx, dy, dw, dh);
+    }
+  }
+
+  if (!wallTex) {
+    wallTex = new THREE.CanvasTexture(wallCanvas);
+    wallTex.colorSpace = THREE.NoColorSpace; // pass the wallpaper's pixels through untouched
+    wallTex.generateMipmaps = false;
+    wallTex.minFilter = wallTex.magFilter = THREE.LinearFilter;
+  } else {
+    wallTex.image = wallCanvas;
+  }
+  wallTex.needsUpdate = true;
+  invisibleUniforms.uRes.value.set(cw, ch);
+  invisibleUniforms.uWall.value = wallTex;
+}
+
+async function setWallpaper(info) {
+  wallInfo = info;
+  wallImg = null;
+  if (info?.bytes) {
+    try {
+      const data = (info.bytes instanceof Uint8Array || info.bytes instanceof ArrayBuffer)
+        ? info.bytes
+        : new Uint8Array(info.bytes);
+      const blob = new Blob([data], { type: 'image/jpeg' });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = () => { URL.revokeObjectURL(url); resolve(); };
+        img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+        img.src = url;
+      });
+      wallImg = img;
+    } catch (e) {
+      console.error('wallpaper image', e);
+    }
+  }
+  drawWallpaper();
+  wake();
+}
+
+async function ensureWallpaper() {
+  if (wallImg) return;
+  if (api?.getWallpaper) {
+    try {
+      const info = await api.getWallpaper();
+      if (info) await setWallpaper(info);
+    } catch (e) {
+      console.error('ensureWallpaper failed', e);
+    }
+  }
+}
+
+const invisibleUniforms = {
+  uWall: { value: null },
+  uRes: { value: new THREE.Vector2(1, 1) },
+  uAspect: { value: ASPECT },
+};
+
+function invisibleMaterial(side) {
+  return new THREE.ShaderMaterial({
+    uniforms: invisibleUniforms,
+    side,
+    vertexShader: `
+      varying vec3 vN; varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        vN = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform sampler2D uWall; uniform vec2 uRes; uniform float uAspect;
+      varying vec3 vN; varying vec2 vUv;
+      void main() {
+        vec3 n = normalize(gl_FrontFacing ? vN : -vN);
+        float tilt = 1.0 - abs(n.z);                       // 0 where it lies flat, up to 1 on steep folds
+        vec2 uv = clamp(gl_FragCoord.xy / uRes + n.xy * 0.018, 0.0, 1.0);   // a little refraction where it bends
+        vec3 col = texture2D(uWall, uv).rgb;
+        // faint glint along the four edges, a touch stronger on folds
+        vec2 e = min(vUv, 1.0 - vUv) * vec2(uAspect, 1.0);
+        float edge = 1.0 - smoothstep(0.0, 0.012, min(e.x, e.y));
+        float rim = pow(tilt, 2.0);
+        col = mix(col, vec3(0.86, 0.93, 1.0), clamp(edge * 0.28 + rim * 0.22, 0.0, 0.6));
+        col *= 1.0 - tilt * 0.12;                           // folds read as slightly darker glass
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+  });
+}
+
+function makeMaterials(style) {
+  if (STYLES[style]?.invisible) {
+    ensureWallpaper();
+    if (!wallTex) drawWallpaper();
+    return { front: invisibleMaterial(THREE.FrontSide), back: invisibleMaterial(THREE.BackSide), invisible: true };
+  }
+  textures.forEach((t) => t.dispose());
+  const { front: fc, back: bc, bump } = makeRugCanvases(style, ASPECT);
+  const ft = new THREE.CanvasTexture(fc);
+  ft.colorSpace = THREE.SRGBColorSpace;
+  ft.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const bt = new THREE.CanvasTexture(bc);
+  bt.colorSpace = THREE.SRGBColorSpace;
+  const bm = new THREE.CanvasTexture(bump);
+  bm.wrapS = bm.wrapT = THREE.RepeatWrapping;
+  bm.repeat.set(10, 10 / ASPECT);
+  textures = [ft, bt, bm];
+  return {
+    front: new THREE.MeshStandardMaterial({ map: ft, bumpMap: bm, bumpScale: 0.6, roughness: 0.96, metalness: 0, side: THREE.FrontSide }),
+    back: new THREE.MeshStandardMaterial({ map: bt, roughness: 1, metalness: 0, side: THREE.BackSide }),
+  };
+}
+
+// Points across the rug. Fewer points make the physics cheaper; 26 still folds smoothly at every size.
+const GRID = 26;
+
+// Where a rug saved with the old 40-point grid lay, and which way it pointed.
+function savedPlace(p) {
+  const n = p.length / 3, nx = 40, ny = n / nx;
+  if (!Number.isInteger(ny) || ny < 2) return null;
+  let x = 0, y = 0;
+  for (let i = 0; i < n; i++) { x += p[i * 3]; y += p[i * 3 + 1]; }
+  const a = ((ny / 2) | 0) * nx * 3, b = a + (nx - 1) * 3;
+  const angle = Math.atan2(p[b + 1] - p[a + 1], p[b] - p[a]);
+  return Number.isFinite(x + y + angle) ? { x: x / n, y: y / n, angle } : null;
+}
+
+function buildRug({ keepPose = true, saved = null } = {}) {
+  let cx = W * 0.5, cy = H * 0.55, angle = 0;
+  if (keepPose && cloth) { ({ x: cx, y: cy } = cloth.centroid()); angle = cloth.angle(); }
+  const width = SIZES[state.size] || SIZES.orta;
+  // A pose saved with another grid (before 1.16.7 the rug had 40 points across): lay the rug flat where it was.
+  if (saved && saved.length % 3 === 0 && saved.length !== Cloth.count(width, width / ASPECT, GRID) * 3) {
+    const old = savedPlace(saved);
+    if (old) ({ x: cx, y: cy, angle } = old);
+    saved = null;
+  }
+  cloth = new Cloth({ width, height: width / ASPECT, cx, cy, angle, nx: GRID });
+  cloth.setWeight(W8());
+  if (saved) {
+    cloth.pos.set(saved);
+    cloth.prev.set(saved);
+  }
+
+  if (front) { scene.remove(front, back); geom.dispose(); front.material.dispose(); back.material.dispose(); }
+  geom = new THREE.BufferGeometry();
+  const nx = cloth.nx, ny = cloth.ny;
+  const uv = new Float32Array(cloth.n * 2);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const p = j * nx + i;
+    uv[p * 2] = i / (nx - 1);
+    uv[p * 2 + 1] = 1 - j / (ny - 1);
+  }
+  const index = [];
+  for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
+    // screen y is flipped into world y, so this winding faces the camera
+    index.push(a, c, b, b, c, d);
+  }
+  geom.setIndex(index);
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(cloth.n * 3), 3));
+  geom.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  const mats = makeMaterials(state.style);
+  front = new THREE.Mesh(geom, mats.front);
+  back = new THREE.Mesh(geom, mats.back);
+  // The Invisible rug casts no shadow and takes none, or it would give itself away.
+  front.castShadow = back.castShadow = front.receiveShadow = back.receiveShadow = !mats.invisible;
+  pick = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+  pick.visible = false;
+  scene.add(front, back);
+  syncGeometry();
+  wake();
+}
+
+function syncGeometry() {
+  if (!geom || !cloth) return;
+  const arr = geom.attributes.position.array, p = cloth.pos;
+  const hw = W / 2, hh = H / 2;
+  for (let i = 0; i < cloth.n; i++) {
+    const k = i * 3;
+    arr[k] = p[k] - hw;
+    arr[k + 1] = hh - p[k + 1];
+    arr[k + 2] = p[k + 2];
+  }
+  geom.attributes.position.needsUpdate = true;
+  geom.computeVertexNormals();
+  geom.computeBoundingSphere();
+}
+
+// ---------- picking ----------
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+function hitTest(mx, my) {
+  if (state.hidden || !pick || !geom || !cloth) return null;
+  ndc.set((mx / W) * 2 - 1, -(my / H) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObject(pick, false)[0];
+  return hit || null;
+}
+
+// Screen point → world point on the horizontal plane at height z (screen coords).
+const tmpPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+const tmpV = new THREE.Vector3();
+function screenToPlane(mx, my, z) {
+  ndc.set((mx / W) * 2 - 1, -(my / H) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  tmpPlane.constant = -z;
+  if (!raycaster.ray.intersectPlane(tmpPlane, tmpV)) return { x: mx, y: my };
+  return { x: tmpV.x + W / 2, y: H / 2 - tmpV.y };
+}
+
+// ---------- interaction ----------
+let grab = null; // { i, z, offX, offY }
+let over = false;
+let mouse = { x: -1, y: -1 };
+
+function setOver(v, force = false) {
+  if (v === over && !force) return;
+  over = v;
+  document.body.classList.toggle('over', v);
+  api?.setIgnoreMouse(!v);
+}
+
+// Cursor position and left-button state polled by the main process. Windows sometimes stops
+// sending mouse events to a click-through window (after a menu, an overlay or a focus change), so
+// hover, dragging and letting go all keep working from this even when those events are missing.
+let polledDown = false, pendingStart = 0, pollSeesButton = false;
+function onCursor(p) {
+  if (!cloth || !geom) return;
+  mouse = { x: p.x, y: p.y };
+  const down = p.down, wasDown = polledDown;
+  if (down !== null && down !== undefined) polledDown = down;
+  if (down) pollSeesButton = true; // only trust "button up" from a poll that has ever seen it down
+  if (grab) {
+    // Let go when the button is up. Ignore the first moments of a grab: the poll can lag behind
+    // the pointerdown event that started it.
+    if (down === false && pollSeesButton && performance.now() - grab.at > 150) endGrab(); else wake();
+    return;
+  }
+  const hit = hitTest(p.x, p.y);
+  setOver(!!hit);
+  // Pressed over the rug but no pointerdown arrived: start the drag from the poll instead.
+  if (down && !wasDown && hit && p.free !== false) {
+    clearTimeout(pendingStart);
+    const sx = p.x, sy = p.y;
+    pendingStart = setTimeout(() => { if (!grab && polledDown) startGrab(sx, sy); }, 60);
+  }
+}
+
+window.addEventListener('pointermove', (e) => {
+  if (window.isCustomMenuOpen) return;
+  mouse = { x: e.clientX, y: e.clientY };
+  if (grab && e.buttons === 0) { endGrab(); return; } // missed a mouse-up
+  if (grab) { wake(); return; }
+  setOver(!!hitTest(e.clientX, e.clientY));
+});
+
+window.addEventListener('pointerdown', (e) => {
+  if (window.isCustomMenuOpen) return;
+  if (e.button !== 0) return;
+  mouse = { x: e.clientX, y: e.clientY };
+  if (!startGrab(e.clientX, e.clientY)) return;
+  try { e.target.setPointerCapture?.(e.pointerId); } catch {}
+});
+
+function startGrab(mx, my) {
+  if (grab) return true;
+  if (!cloth || !geom) return false;
+  const hit = hitTest(mx, my);
+  if (!hit) return false;
+  clearTimeout(pendingStart);
+  const f = hit.face;
+  const cands = [f.a, f.b, f.c];
+  let best = cands[0], bd = Infinity;
+  const pa = geom.attributes.position.array;
+  for (const c of cands) {
+    const d = (pa[c * 3] - hit.point.x) ** 2 + (pa[c * 3 + 1] - hit.point.y) ** 2 + (pa[c * 3 + 2] - hit.point.z) ** 2;
+    if (d < bd) { bd = d; best = c; }
+  }
+  const k = best * 3;
+  grab = { i: best, z: cloth.pos[k + 2], startZ: cloth.pos[k + 2], t: 0, x: cloth.pos[k], y: cloth.pos[k + 1], at: performance.now() };
+  document.body.classList.add('grabbing');
+  api?.setIgnoreMouse(false);
+  wake();
+  return true;
+}
+
+function endGrab() {
+  if (!grab) return;
+  grab = null;
+  cloth.releasePin();
+  checkTangle = true;
+  document.body.classList.remove('grabbing');
+  setOver(!!hitTest(mouse.x, mouse.y));
+  wake();
+}
+window.addEventListener('pointerup', endGrab);
+window.addEventListener('pointercancel', endGrab);
+window.addEventListener('blur', endGrab);
+
+window.addEventListener('dblclick', (e) => {
+  if (window.isCustomMenuOpen) return;
+  if (hitTest(e.clientX, e.clientY)) flatten();
+});
+
+window.addEventListener('wheel', (e) => {
+  if (window.isCustomMenuOpen) return;
+  if (!hitTest(e.clientX, e.clientY)) return;
+  e.preventDefault();
+  if (e.ctrlKey) {
+    const order = ['kucuk', 'orta', 'buyuk'];
+    const i = order.indexOf(state.size) + (e.deltaY < 0 ? 1 : -1);
+    if (i >= 0 && i < order.length) {
+      state.size = order[i];
+      buildRug();
+      save();
+      api?.reportState({ style: state.style, size: state.size, weight: state.weight });
+    }
+  } else {
+    cloth.rotate(Math.sign(e.deltaY) * 0.06);
+    wake();
+  }
+}, { passive: false });
+
+window.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  if (hitTest(e.clientX, e.clientY)) api?.showMenu(e);
+});
+
+window.__resetHover = () => {
+  endGrab();
+  setOver(!!hitTest(mouse.x, mouse.y), true);
+};
+
+// Every point is a number and every thread between neighbours is about its own length.
+function poseIntact(c) {
+  const p = c.pos;
+  for (let k = 0; k < p.length; k++) if (!Number.isFinite(p[k])) return false;
+  for (let j = 0; j < c.ny; j++) for (let i = 0; i < c.nx; i++) {
+    const a = (j * c.nx + i) * 3;
+    for (const [b, rest] of [[i < c.nx - 1 ? a + 3 : -1, c.dx], [j < c.ny - 1 ? a + c.nx * 3 : -1, c.dy]]) {
+      if (b < 0) continue;
+      const d = Math.hypot(p[b] - p[a], p[b + 1] - p[a + 1], p[b + 2] - p[a + 2]);
+      if (d > rest * 2.5 || d < rest * 0.2) return false;
+    }
+  }
+  return true;
+}
+
+function flatten() {
+  const { x, y } = cloth.centroid();
+  const a = cloth.angle();
+  cloth.layFlat(x, y, a);
+  // a little drop so it settles visibly
+  for (let i = 0; i < cloth.n; i++) cloth.pos[i * 3 + 2] += 40;
+  cloth.prev.set(cloth.pos);
+  wake();
+}
+
+function center() {
+  const { x, y } = cloth.centroid();
+  cloth.translate(W / 2 - x, H * 0.55 - y);
+  wake();
+}
+
+// ---------- simulation loop (sleeps when still) ----------
+let awake = false, still = 0, last = 0, acc = 0, checkTangle = false, restlessSince = 0;
+// Physics gets at most this much of a frame. On a computer that can't keep up the rug moves a little slower instead of
+// keeping a full-screen window busy (which makes the whole desktop feel stuck).
+const HEAP = 10;
+const DT = 1 / 120;
+const PHYSICS_BUDGET_MS = 6;
+
+function wake() {
+  still = 0;
+  restlessSince = performance.now();
+  if (!awake) { awake = true; last = restlessSince; acc = 0; requestAnimationFrame(frame); }
+}
+
+// Quality watch: while the rug is moving, keep an eye on the frame rate. If it stays under ~38 fps, step the
+// quality down (smaller canvas, smaller shadow map, then no shadows); the level is remembered between runs.
+let fpsFrames = 0, fpsTime = 0;
+function applyQuality() {
+  renderer.setPixelRatio(pixelRatio());
+  renderer.setSize(W, H);
+  const size = quality ? 1024 : 2048;
+  if (sun.shadow.mapSize.x !== size) { sun.shadow.mapSize.set(size, size); sun.shadow.map?.dispose(); sun.shadow.map = null; }
+  renderer.shadowMap.enabled = quality < 3;
+  scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
+  if (wallTex) drawWallpaper();
+  try { localStorage.setItem('dc-quality', String(quality)); } catch {}
+}
+function watchFps(interval) {
+  if (interval > 250) { fpsFrames = 0; fpsTime = 0; return; } // a pause, not a slow frame
+  fpsFrames++; fpsTime += interval;
+  if (fpsFrames < 60) return;
+  const avg = fpsTime / fpsFrames;
+  fpsFrames = 0; fpsTime = 0;
+  if (avg > 26 && quality < 3) { quality++; applyQuality(); }
+  else if (avg < 16 && quality > 0) { quality--; applyQuality(); }
+}
+
+let fpsTimer = performance.now();
+let fpsCount = 0;
+
+function frame(now) {
+  if (!cloth || !geom) {
+    if (awake) requestAnimationFrame(frame);
+    return;
+  }
+  const interval = now - last;
+  let elapsed = Math.min(0.05, interval / 1000);
+  last = now;
+  acc += elapsed;
+  // Fast monitors (120/144 Hz) call us more often than the physics runs; draw only when something stepped.
+  if (acc < DT) { requestAnimationFrame(frame); return; }
+  if (grab || still < 10) watchFps(interval);
+  let moved = 0, steps = 0;
+  const t0 = performance.now();
+  while (acc >= DT) {
+    // A slow frame shouldn't snowball into more and more catch-up steps: run at most 3 (and only while there's time
+    // left in the budget), then drop the rest.
+    if (++steps > 3 || (steps > 1 && performance.now() - t0 > PHYSICS_BUDGET_MS)) { acc = 0; break; }
+    if (grab) {
+      const w = W8();
+      grab.t = Math.min(1, grab.t + DT * 4);
+      const ease = 1 - Math.pow(1 - grab.t, 3);
+      grab.z = grab.startZ + (w.lift - grab.startZ) * ease;
+      const target = screenToPlane(mouse.x, mouse.y, grab.z);
+      const f = 1 - Math.exp(-DT * w.follow);
+      grab.x += (target.x - grab.x) * f;
+      grab.y += (target.y - grab.y) * f;
+      cloth.setPin(grab.i, grab.x, grab.y, grab.z, w.pin);
+    }
+    moved = Math.max(moved, cloth.step(DT));
+    acc -= DT;
+  }
+  syncGeometry();
+  renderer.render(scene, camera);
+
+  if (grab) restlessSince = now;
+  if (!grab && moved < 0.02) still++; else still = 0;
+  // Still twitching 6 s after the last touch: it has landed, let it rest where it is (folds and all).
+  const overdue = !grab && still <= 45 && now - restlessSince > 6000;
+  if (checkTangle && (still > 45 || overdue)) {
+    // Let go and it settled as a heap (twisted round and round): lay it back out flat. A fold stays a fold.
+    checkTangle = false;
+    if (cloth.maxHeight() > cloth.spacing * HEAP) { flatten(); requestAnimationFrame(frame); return; }
+  }
+  if (overdue) { cloth.prev.set(cloth.pos); still = 46; }
+  if (still > 45) {
+    awake = false;
+    save();
+    return;
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------- persistence & commands ----------
+let saveTimer = 0;
+function save() {
+  if (!api) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    api.saveState({ ...state, pos: Array.from(cloth.pos, (v) => Math.round(v * 10) / 10), screen: [W, H] });
+  }, 300);
+}
+
+function applyHidden() {
+  front.visible = back.visible = !state.hidden;
+  if (state.hidden) { endGrab(); setOver(false); }
+  wake();
+}
+
+// Bring the rug back onto the screen if it ended up (mostly) outside it.
+function ensureOnScreen() {
+  const { x, y } = cloth.centroid();
+  if (x < 40 || y < 40 || x > W - 40 || y > H - 40) center();
+}
+
+function command(cmd, arg) {
+  switch (cmd) {
+    case 'style':
+      if (STYLES[arg]) {
+        state.style = arg;
+        if (STYLES[arg]?.invisible) ensureWallpaper();
+        buildRug();
+      }
+      break;
+    case 'size': if (SIZES[arg]) { state.size = arg; buildRug(); } break;
+    case 'flatten': flatten(); break;
+    case 'center': center(); break;
+    case 'hide': state.hidden = true; applyHidden(); break;
+    case 'show': state.hidden = false; applyHidden(); ensureOnScreen(); break;
+    case 'weight':
+      if (WEIGHTS[arg]) {
+        state.weight = arg;
+        const w = W8();
+        cloth.setWeight(w);
+        for (let i = 0; i < cloth.n; i++) {
+          cloth.pos[i * 3 + 2] += (arg === 'hafif' ? 24 : arg === 'agir' ? 8 : 16);
+        }
+        cloth.prev.set(cloth.pos);
+        api?.log?.(`[WEIGHT] Applied weight '${arg}': follow=${w.follow}, lift=${w.lift}, gravity=${w.gravity}`);
+        wake();
+      }
+      break;
+    case 'layout': layout(); syncGeometry(); if (wallTex) drawWallpaper(); wake(); break;
+    case 'wallpaper': setWallpaper(arg); return;
+    case 'cursor': onCursor(arg); return;
+    case 'redraw': wake(); return;
+    case 'reset-input': endGrab(); setOver(!!hitTest(mouse.x, mouse.y), true); return;
+  }
+  save();
+  api?.reportState({ style: state.style, size: state.size, weight: state.weight });
+}
+
+window.addEventListener('resize', () => command('layout'));
+// Lettered rugs (postcard, diner, Route 66…) use the panel's display fonts; once they're loaded, redraw such a rug
+// so its lettering switches from the fallback font.
+loadRugFonts().then(() => { if (STYLES[state.style]?.fonts && cloth) buildRug(); });
+if (!api) window.__dcCommand = command; // plain-browser preview: lets a test page drive the rug
+
+(async () => {
+  let saved = null;
+  if (api) {
+    try { saved = await api.loadState(); } catch {}
+  }
+  if (saved) {
+    if (STYLES[saved.style]) state.style = saved.style;
+    if (SIZES[saved.size]) state.size = saved.size;
+    if (WEIGHTS[saved.weight]) state.weight = saved.weight;
+  }
+  state.hidden = false; // opening the app always shows the rug
+  if (STYLES[state.style]?.invisible) ensureWallpaper();
+  const sameScreen = saved?.screen && saved.screen[0] === W && saved.screen[1] === H;
+  buildRug({ keepPose: false, saved: sameScreen && saved.pos ? Float32Array.from(saved.pos) : null });
+  // A saved pose that's torn apart (1.16.2 could leave a rug like that): start again flat in the middle.
+  // One left crumpled up in a heap: lay it flat where it is.
+  if (saved?.pos && !poseIntact(cloth)) buildRug({ keepPose: false });
+  if (!saved?.pos || !poseIntact(cloth) || cloth.maxHeight() > cloth.spacing * HEAP) flatten();
+  applyHidden();
+  ensureOnScreen();
+
+  if (api) {
+    api.onCommand(command);
+  }
+
+  api?.reportState({ style: state.style, size: state.size, weight: state.weight });
+  // Prefetch desktop wallpaper so switching to invisible is instant
+  ensureWallpaper();
+})();
+
+// test hooks for automated preview
+window.__halim = { command, get cloth() { return cloth; }, wake };

@@ -59,6 +59,9 @@
     animation: tgFadeIn 0.12s cubic-bezier(0.2, 0, 0, 1);
     z-index: 1000000;
   }
+  #sub-menu {
+    width: 250px;
+  }
   @keyframes tgFadeIn {
     from { opacity: 0; transform: scale(0.97); }
     to { opacity: 1; transform: scale(1); }
@@ -68,7 +71,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 1px;
-    max-height: 335px;
+    max-height: 345px;
   }
   .tg-scroll::-webkit-scrollbar {
     width: 4px;
@@ -103,6 +106,8 @@
   .tg-label {
     flex: 1;
     font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .tg-icon {
     display: inline-flex;
@@ -135,12 +140,71 @@
     justify-content: center;
     flex-shrink: 0;
   }
+  #sub-header {
+    padding: 3px 3px 6px 3px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tg-search-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 6px;
+    color: #fff;
+    padding: 6px 9px;
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+    font-family: inherit;
+  }
+  .tg-search-input:focus {
+    border-color: #5288c1;
+    background: rgba(0, 0, 0, 0.65);
+  }
+  .tg-badge {
+    font-size: 11px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1px 6px;
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .tg-group-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: #5288c1;
+    padding: 8px 10px 3px 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+  }
+  .tg-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: #5288c1;
+    background: rgba(82, 136, 193, 0.1);
+    transition: background 0.08s ease, color 0.08s ease;
+  }
+  .tg-back-btn:hover {
+    background: rgba(82, 136, 193, 0.22);
+    color: #ffffff;
+  }
 </style>
 </head>
 <body>
 
 <!-- TELEGRAM ACRYLIC POPUP MENU -->
-<div id="tg-menu-overlay">
+<div id="tg-menu-overlay" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()">
   <div id="tg-backdrop" onpointerdown="handleBackdropClick(event)"></div>
 
   <!-- MAIN MENU -->
@@ -219,6 +283,7 @@
 
   <!-- FLYOUT SUBMENU (Opens beside main menu) -->
   <div class="tg-panel" id="sub-menu" style="display:none;">
+    <div id="sub-header" style="display:none;"></div>
     <div class="tg-scroll" id="sub-items"></div>
   </div>
 </div>
@@ -259,7 +324,6 @@
     window.halim = {
       setIgnoreMouse: function(ignore) {
         if (window.isCustomMenuOpen && ignore) {
-          // Keep mouse events enabled for the Telegram menu!
           return;
         }
         if (window.__TAURI__?.core?.invoke) {
@@ -287,6 +351,17 @@
         }
         return null;
       },
+      getWallpaper: async function() {
+        const tauri = await getTauri();
+        if (tauri?.core?.invoke) {
+          try {
+            return await tauri.core.invoke('get_wallpaper');
+          } catch (e) {
+            return null;
+          }
+        }
+        return null;
+      },
       reportState: function(state) {
         if (state) {
           if (state.style) currentState.style = state.style;
@@ -299,6 +374,11 @@
       },
       onCommand: function(fn) {
         listeners.push(fn);
+      },
+      log: function(msg) {
+        if (window.__TAURI__?.core?.invoke) {
+          window.__TAURI__.core.invoke('log_from_js', { msg: String(msg) }).catch(() => {});
+        }
       }
     };
 
@@ -307,6 +387,9 @@
         window.__TAURI__.event.listen('command', function(event) {
           const payload = event.payload;
           if (payload && payload.cmd) {
+            if (payload.cmd in currentState) {
+              currentState[payload.cmd] = payload.arg;
+            }
             for (let i = 0; i < listeners.length; i++) {
               listeners[i](payload.cmd, payload.arg);
             }
@@ -333,24 +416,8 @@
   // MENU STATE & CONTROLLER
   let currentState = { style: 'tabriz', size: 'orta', weight: 'normal' };
   let currentSub = null;
-
-  const STYLES = [
-    { id: 'tabriz', label: 'Tabriz' },
-    { id: 'nain', label: 'Nain' },
-    { id: 'heriz', label: 'Heriz' },
-    { id: 'kilim', label: 'Kilim' },
-    { id: 'buta', label: 'Paisley (Buta)' },
-    { id: 'gabbe', label: 'Gabbeh' },
-    { id: 'av', label: 'Hunting (Av)' },
-    { id: 'bahce', label: 'Garden (Bahce)' },
-    { id: 'kum', label: 'Qom' },
-    { id: 'turkmen', label: 'Turkmen' },
-    { id: 'klasik', label: 'Classic' },
-    { id: 'lacivert', label: 'Navy' },
-    { id: 'zumrut', label: 'Emerald' },
-    { id: 'buyukdalga', label: 'Great Wave' },
-    { id: 'zen', label: 'Zen' }
-  ];
+  let selectedCategory = null;
+  let rugSearchQuery = '';
 
   const SIZES = [
     { id: 'kucuk', label: 'Small' },
@@ -363,6 +430,1392 @@
     { id: 'normal', label: 'Normal' },
     { id: 'agir', label: 'Heavy' }
   ];
+
+  const CATALOG = [
+  {
+    "id": "persia",
+    "title": "Persia",
+    "faTitle": "ایران",
+    "styles": [
+      {
+        "id": "heriz",
+        "name": "هریس (Heriz)",
+        "origin": "East Azerbaijan"
+      },
+      {
+        "id": "bahce",
+        "name": "باغ بهشت (Paradise Garden)",
+        "origin": "Kerman"
+      },
+      {
+        "id": "av",
+        "name": "شکارگاه (Hunting)",
+        "origin": "Tabriz"
+      },
+      {
+        "id": "hayat",
+        "name": "درخت زندگی (Tree of Life)",
+        "origin": "Isfahan"
+      },
+      {
+        "id": "buta",
+        "name": "بته جقه (Boteh)",
+        "origin": "Saraband"
+      },
+      {
+        "id": "bahtiyari",
+        "name": "بختیاری (Bakhtiari)",
+        "origin": "Chaharmahal"
+      },
+      {
+        "id": "gabbe",
+        "name": "گبه (Gabbeh)",
+        "origin": "Fars"
+      },
+      {
+        "id": "nain",
+        "name": "نائین (Nain)",
+        "origin": "Isfahan"
+      },
+      {
+        "id": "vazo",
+        "name": "گلدانی کرمان (Vase)",
+        "origin": "Kerman"
+      },
+      {
+        "id": "herati",
+        "name": "هراتی (Herati)",
+        "origin": "Bijar"
+      },
+      {
+        "id": "kum",
+        "name": "قم (Qom)",
+        "origin": "Qom"
+      },
+      {
+        "id": "turkmen",
+        "name": "ترکمن (Turkmen)",
+        "origin": "Khorasan"
+      }
+    ]
+  },
+  {
+    "id": "classics",
+    "title": "Classics",
+    "faTitle": "کلاسیک",
+    "styles": [
+      {
+        "id": "gorunmez",
+        "name": "نامرئی (Invisible)",
+        "origin": ""
+      },
+      {
+        "id": "tabriz",
+        "name": "تبریز (Tabriz)",
+        "origin": ""
+      },
+      {
+        "id": "klasik",
+        "name": "قرمز لاکی (Madder Red)",
+        "origin": ""
+      },
+      {
+        "id": "lacivert",
+        "name": "سورمه‌ای (Midnight Navy)",
+        "origin": ""
+      },
+      {
+        "id": "zumrut",
+        "name": "زمردی (Emerald)",
+        "origin": ""
+      },
+      {
+        "id": "kilim",
+        "name": "گلیم (Kilim)",
+        "origin": ""
+      }
+    ]
+  },
+  {
+    "id": "turkiye",
+    "title": "Türkiye",
+    "faTitle": "ترکیه",
+    "styles": [
+      {
+        "id": "usak",
+        "name": "Ushak Medallion",
+        "origin": "Uşak"
+      },
+      {
+        "id": "lotto",
+        "name": "Lotto",
+        "origin": "Uşak"
+      },
+      {
+        "id": "bergama",
+        "name": "Bergama",
+        "origin": "Bergama, Izmir"
+      },
+      {
+        "id": "yagcibedir",
+        "name": "Yağcıbedir",
+        "origin": "Sındırgı, Balıkesir"
+      },
+      {
+        "id": "selcuklu",
+        "name": "Seljuk",
+        "origin": "Konya"
+      },
+      {
+        "id": "hereke",
+        "name": "Hereke Silk",
+        "origin": "Hereke, Kocaeli"
+      },
+      {
+        "id": "iznik",
+        "name": "Iznik Tulips",
+        "origin": "Iznik, Bursa"
+      },
+      {
+        "id": "turkiyekart",
+        "name": "Greetings from Türkiye",
+        "origin": "All over Türkiye"
+      },
+      {
+        "id": "kapadokya",
+        "name": "Cappadocia Balloons",
+        "origin": "Göreme, Cappadocia"
+      },
+      {
+        "id": "bogaz",
+        "name": "Bosphorus Ferry",
+        "origin": "Istanbul"
+      },
+      {
+        "id": "pamukkale",
+        "name": "Pamukkale",
+        "origin": "Denizli"
+      },
+      {
+        "id": "nazar",
+        "name": "Nazar Bead",
+        "origin": "Nazarköy, Izmir"
+      }
+    ]
+  },
+  {
+    "id": "eastasia",
+    "title": "Eastasia",
+    "faTitle": "شرق آسیا",
+    "subgroups": [
+      {
+        "id": "korea",
+        "title": "Korea",
+        "faTitle": "کره",
+        "styles": [
+          {
+            "id": "bojagi",
+            "name": "Bojagi",
+            "origin": ""
+          },
+          {
+            "id": "saekdong",
+            "name": "Saekdong Stripes",
+            "origin": ""
+          },
+          {
+            "id": "seladon",
+            "name": "Celadon Cranes",
+            "origin": "Gangjin"
+          },
+          {
+            "id": "dancheong",
+            "name": "Dancheong",
+            "origin": "Seoul"
+          },
+          {
+            "id": "hangeul",
+            "name": "Hangeul",
+            "origin": ""
+          },
+          {
+            "id": "najeon",
+            "name": "Mother-of-Pearl",
+            "origin": "Tongyeong"
+          },
+          {
+            "id": "sipjang",
+            "name": "Ten Longevities",
+            "origin": ""
+          },
+          {
+            "id": "kaplan",
+            "name": "Magpie and Tiger",
+            "origin": ""
+          },
+          {
+            "id": "hanok",
+            "name": "Hanok",
+            "origin": "Bukchon, Seoul"
+          },
+          {
+            "id": "seul",
+            "name": "Seoul at Night",
+            "origin": "Seoul"
+          },
+          {
+            "id": "korekart",
+            "name": "Greetings from Korea",
+            "origin": ""
+          },
+          {
+            "id": "yeondeung",
+            "name": "Lotus Lanterns",
+            "origin": "Seoul"
+          },
+          {
+            "id": "bibimbap",
+            "name": "Bibimbap",
+            "origin": "Jeonju"
+          },
+          {
+            "id": "jeju",
+            "name": "Jeju Island",
+            "origin": "Jeju"
+          }
+        ]
+      },
+      {
+        "id": "japan",
+        "title": "Japan",
+        "faTitle": "ژاپن",
+        "styles": [
+          {
+            "id": "seigaiha",
+            "name": "Seigaiha Waves",
+            "origin": ""
+          },
+          {
+            "id": "asanoha",
+            "name": "Asanoha",
+            "origin": ""
+          },
+          {
+            "id": "boro",
+            "name": "Boro",
+            "origin": "Aomori"
+          },
+          {
+            "id": "koi",
+            "name": "Koi Pond",
+            "origin": "Niigata"
+          },
+          {
+            "id": "byobu",
+            "name": "Gold Screen",
+            "origin": "Kyoto"
+          },
+          {
+            "id": "shibori",
+            "name": "Shibori",
+            "origin": "Arimatsu, Nagoya"
+          },
+          {
+            "id": "zen",
+            "name": "باغ ذن (Zen Garden)",
+            "origin": "Kyoto"
+          },
+          {
+            "id": "fuji",
+            "name": "Fuji and Sakura",
+            "origin": "Yamanashi"
+          },
+          {
+            "id": "kyoto",
+            "name": "Kyoto Lane",
+            "origin": "Gion, Kyoto"
+          },
+          {
+            "id": "japonkart",
+            "name": "Greetings from Japan",
+            "origin": ""
+          },
+          {
+            "id": "buyukdalga",
+            "name": "موج بزرگ کاناگاوا (Great Wave)",
+            "origin": "Kanagawa"
+          },
+          {
+            "id": "manekineko",
+            "name": "Maneki-neko",
+            "origin": "Tokyo"
+          },
+          {
+            "id": "torii",
+            "name": "Torii Path",
+            "origin": "Fushimi Inari, Kyoto"
+          },
+          {
+            "id": "sushi",
+            "name": "Sushi",
+            "origin": "Tokyo"
+          }
+        ]
+      },
+      {
+        "id": "china",
+        "title": "China",
+        "faTitle": "چین",
+        "styles": [
+          {
+            "id": "porselen",
+            "name": "Blue and White",
+            "origin": "Jingdezhen"
+          },
+          {
+            "id": "bulut",
+            "name": "Lucky Clouds",
+            "origin": ""
+          },
+          {
+            "id": "artdeco",
+            "name": "Shanghai Deco",
+            "origin": "Shanghai"
+          },
+          {
+            "id": "ningxia",
+            "name": "Ningxia Peony",
+            "origin": "Ningxia"
+          },
+          {
+            "id": "bambu",
+            "name": "Ink Bamboo",
+            "origin": ""
+          },
+          {
+            "id": "kagitkesim",
+            "name": "Paper-Cut",
+            "origin": ""
+          },
+          {
+            "id": "imparator",
+            "name": "Imperial Waves",
+            "origin": "Beijing"
+          },
+          {
+            "id": "mahjong",
+            "name": "Mahjong",
+            "origin": ""
+          },
+          {
+            "id": "panda",
+            "name": "Panda",
+            "origin": "Chengdu"
+          },
+          {
+            "id": "seddicin",
+            "name": "The Great Wall",
+            "origin": "Mutianyu, Beijing"
+          },
+          {
+            "id": "cinkart",
+            "name": "Greetings from China",
+            "origin": ""
+          },
+          {
+            "id": "fenerfest",
+            "name": "Lantern Festival",
+            "origin": ""
+          },
+          {
+            "id": "guilin",
+            "name": "Guilin",
+            "origin": "Guilin"
+          },
+          {
+            "id": "dimsum",
+            "name": "Dim Sum",
+            "origin": "Guangzhou"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mediterranean",
+    "title": "Mediterranean",
+    "faTitle": "مدیترانه",
+    "subgroups": [
+      {
+        "id": "italy",
+        "title": "Italy",
+        "faTitle": "ایتالیا",
+        "styles": [
+          {
+            "id": "majolika",
+            "name": "Majolica",
+            "origin": ""
+          },
+          {
+            "id": "limon",
+            "name": "Amalfi Lemons",
+            "origin": "Amalfi"
+          },
+          {
+            "id": "damask",
+            "name": "Venetian Damask",
+            "origin": "Venice"
+          },
+          {
+            "id": "mozaik",
+            "name": "Roman Mosaic",
+            "origin": "Rome"
+          },
+          {
+            "id": "floransa",
+            "name": "Florentine Marbling",
+            "origin": "Florence"
+          },
+          {
+            "id": "murano",
+            "name": "Murano Glass",
+            "origin": "Murano, Venice"
+          },
+          {
+            "id": "makarna",
+            "name": "Pasta",
+            "origin": ""
+          },
+          {
+            "id": "sicilya",
+            "name": "Sicilian Cart",
+            "origin": "Palermo"
+          },
+          {
+            "id": "venedik",
+            "name": "Venice",
+            "origin": "Venice"
+          },
+          {
+            "id": "toskana",
+            "name": "Tuscany",
+            "origin": "Val d’Orcia"
+          },
+          {
+            "id": "cinqueterre",
+            "name": "Cinque Terre",
+            "origin": "Liguria"
+          },
+          {
+            "id": "pizza",
+            "name": "Pizza",
+            "origin": "Naples"
+          },
+          {
+            "id": "italyakart",
+            "name": "Greetings from Italy",
+            "origin": ""
+          },
+          {
+            "id": "kolezyum",
+            "name": "The Colosseum",
+            "origin": "Rome"
+          },
+          {
+            "id": "gelato",
+            "name": "Gelato",
+            "origin": ""
+          },
+          {
+            "id": "romasokak",
+            "name": "Roman Street",
+            "origin": "Trastevere, Rome"
+          }
+        ]
+      },
+      {
+        "id": "greece",
+        "title": "Greece",
+        "faTitle": "یونان",
+        "styles": [
+          {
+            "id": "menderes",
+            "name": "Meander",
+            "origin": ""
+          },
+          {
+            "id": "amfora",
+            "name": "Amphora",
+            "origin": "Athens"
+          },
+          {
+            "id": "zeytin",
+            "name": "Olive Branch",
+            "origin": "Kalamata"
+          },
+          {
+            "id": "yunuslar",
+            "name": "Dolphins",
+            "origin": "Crete"
+          },
+          {
+            "id": "bizans",
+            "name": "Byzantine Mosaic",
+            "origin": "Thessaloniki"
+          },
+          {
+            "id": "ahtapot",
+            "name": "Minoan Octopus",
+            "origin": "Crete"
+          },
+          {
+            "id": "skiros",
+            "name": "Skyros Embroidery",
+            "origin": "Skyros"
+          },
+          {
+            "id": "kirlangic",
+            "name": "Swallow Fresco",
+            "origin": "Akrotiri, Santorini"
+          },
+          {
+            "id": "santorini",
+            "name": "Santorini",
+            "origin": "Oia"
+          },
+          {
+            "id": "akropolis",
+            "name": "The Acropolis",
+            "origin": "Athens"
+          },
+          {
+            "id": "liman",
+            "name": "Fishing Harbor",
+            "origin": ""
+          },
+          {
+            "id": "mikonos",
+            "name": "Mykonos",
+            "origin": ""
+          },
+          {
+            "id": "yunankart",
+            "name": "Greetings from Greece",
+            "origin": ""
+          },
+          {
+            "id": "knossos",
+            "name": "Knossos",
+            "origin": "Crete"
+          },
+          {
+            "id": "mavikapi",
+            "name": "The Blue Door",
+            "origin": ""
+          },
+          {
+            "id": "yunansalata",
+            "name": "Greek Salad",
+            "origin": ""
+          }
+        ]
+      },
+      {
+        "id": "spain",
+        "title": "Spain",
+        "faTitle": "اسپانیا",
+        "styles": [
+          {
+            "id": "azulejo",
+            "name": "Azulejo",
+            "origin": "Seville"
+          },
+          {
+            "id": "flamenko",
+            "name": "Flamenco",
+            "origin": "Seville"
+          },
+          {
+            "id": "manton",
+            "name": "Manila Shawl",
+            "origin": "Seville"
+          },
+          {
+            "id": "granada",
+            "name": "Pomegranates",
+            "origin": "Granada"
+          },
+          {
+            "id": "trencadis",
+            "name": "Trencadís",
+            "origin": "Barcelona"
+          },
+          {
+            "id": "dantel",
+            "name": "Mantilla Lace",
+            "origin": ""
+          },
+          {
+            "id": "gitar",
+            "name": "Spanish Guitar",
+            "origin": ""
+          },
+          {
+            "id": "kastanyet",
+            "name": "Castanets",
+            "origin": ""
+          },
+          {
+            "id": "elhamra",
+            "name": "The Alhambra",
+            "origin": "Granada"
+          },
+          {
+            "id": "avlu",
+            "name": "Andalusian Patio",
+            "origin": "Córdoba"
+          },
+          {
+            "id": "paella",
+            "name": "Paella",
+            "origin": "Valencia"
+          },
+          {
+            "id": "lamancha",
+            "name": "La Mancha",
+            "origin": "Consuegra"
+          },
+          {
+            "id": "ispanyakart",
+            "name": "Greetings from Spain",
+            "origin": ""
+          },
+          {
+            "id": "parkguell",
+            "name": "Park Güell",
+            "origin": "Barcelona"
+          },
+          {
+            "id": "tapas",
+            "name": "Tapas",
+            "origin": ""
+          },
+          {
+            "id": "portakal",
+            "name": "Valencia Oranges",
+            "origin": "Valencia"
+          }
+        ]
+      },
+      {
+        "id": "france",
+        "title": "France",
+        "faTitle": "فرانسه",
+        "styles": [
+          {
+            "id": "provence",
+            "name": "Provençal Print",
+            "origin": "Provence"
+          },
+          {
+            "id": "tomette",
+            "name": "Tomette Tiles",
+            "origin": "Provence"
+          },
+          {
+            "id": "cigale",
+            "name": "Cicadas",
+            "origin": "Provence"
+          },
+          {
+            "id": "mimoza",
+            "name": "Mimosa",
+            "origin": "Grasse"
+          },
+          {
+            "id": "toile",
+            "name": "Toile",
+            "origin": ""
+          },
+          {
+            "id": "moustiers",
+            "name": "Moustiers Faience",
+            "origin": "Moustiers-Sainte-Marie"
+          },
+          {
+            "id": "lavanta",
+            "name": "Lavender Fields",
+            "origin": "Valensole"
+          },
+          {
+            "id": "riviera",
+            "name": "Riviera",
+            "origin": "Antibes"
+          },
+          {
+            "id": "aycicegi",
+            "name": "Sunflowers",
+            "origin": "Provence"
+          },
+          {
+            "id": "petank",
+            "name": "Pétanque",
+            "origin": "Marseille"
+          },
+          {
+            "id": "pazar",
+            "name": "Provence Market",
+            "origin": "Aix-en-Provence"
+          },
+          {
+            "id": "kalanka",
+            "name": "Calanques",
+            "origin": "Marseille"
+          },
+          {
+            "id": "fransakart",
+            "name": "Greetings from France",
+            "origin": ""
+          },
+          {
+            "id": "mavisandalye",
+            "name": "Blue Chairs",
+            "origin": "Nice"
+          },
+          {
+            "id": "roussillon",
+            "name": "Roussillon",
+            "origin": "Vaucluse"
+          },
+          {
+            "id": "camargue",
+            "name": "Camargue Horses",
+            "origin": "Arles"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "americas",
+    "title": "Americas",
+    "faTitle": "قاره آمریکا",
+    "subgroups": [
+      {
+        "id": "usa",
+        "title": "USA",
+        "faTitle": "آمریکا",
+        "styles": [
+          {
+            "id": "yildizlar",
+            "name": "Stars & Stripes",
+            "origin": ""
+          },
+          {
+            "id": "mesa",
+            "name": "Desert Mesa",
+            "origin": ""
+          },
+          {
+            "id": "yorgan",
+            "name": "Log Cabin Quilt",
+            "origin": ""
+          },
+          {
+            "id": "ekose",
+            "name": "Buffalo Plaid",
+            "origin": ""
+          },
+          {
+            "id": "kanyon",
+            "name": "Canyon Sunset",
+            "origin": ""
+          },
+          {
+            "id": "ambar",
+            "name": "Barn Star",
+            "origin": ""
+          },
+          {
+            "id": "yalniz",
+            "name": "Lone Star",
+            "origin": ""
+          },
+          {
+            "id": "bizon",
+            "name": "Bison Plains",
+            "origin": ""
+          },
+          {
+            "id": "kartpostal",
+            "name": "Greetings from America",
+            "origin": ""
+          },
+          {
+            "id": "millipark",
+            "name": "See America",
+            "origin": ""
+          },
+          {
+            "id": "beyzbol",
+            "name": "Ballpark",
+            "origin": ""
+          },
+          {
+            "id": "basketbol",
+            "name": "Hardwood Court",
+            "origin": ""
+          },
+          {
+            "id": "diner",
+            "name": "Diner",
+            "origin": ""
+          },
+          {
+            "id": "route66",
+            "name": "Route 66",
+            "origin": ""
+          }
+        ]
+      },
+      {
+        "id": "canada",
+        "title": "Canada",
+        "faTitle": "کانادا",
+        "styles": [
+          {
+            "id": "akcaagac",
+            "name": "Maple Leaf",
+            "origin": ""
+          },
+          {
+            "id": "yaprak",
+            "name": "Maple Leaf Quilt",
+            "origin": ""
+          },
+          {
+            "id": "kayalik",
+            "name": "Rocky Mountains",
+            "origin": ""
+          },
+          {
+            "id": "atlantik",
+            "name": "Atlantic Tartan",
+            "origin": ""
+          },
+          {
+            "id": "geyik",
+            "name": "Moose Lake",
+            "origin": ""
+          },
+          {
+            "id": "kazlar",
+            "name": "Canada Geese",
+            "origin": ""
+          },
+          {
+            "id": "dalgic",
+            "name": "Loon at Dawn",
+            "origin": ""
+          },
+          {
+            "id": "kanadakart",
+            "name": "Greetings from Canada",
+            "origin": ""
+          },
+          {
+            "id": "hokey",
+            "name": "Hockey Rink",
+            "origin": ""
+          },
+          {
+            "id": "kuzeyisik",
+            "name": "Northern Lights",
+            "origin": ""
+          },
+          {
+            "id": "fener",
+            "name": "Lighthouse",
+            "origin": ""
+          },
+          {
+            "id": "kutupayisi",
+            "name": "Polar Bear",
+            "origin": ""
+          }
+        ]
+      },
+      {
+        "id": "mexico",
+        "title": "Mexico",
+        "faTitle": "مکزیک",
+        "styles": [
+          {
+            "id": "sarape",
+            "name": "Sarape",
+            "origin": ""
+          },
+          {
+            "id": "greca",
+            "name": "Greca",
+            "origin": ""
+          },
+          {
+            "id": "cini",
+            "name": "Blue Tile",
+            "origin": ""
+          },
+          {
+            "id": "agave",
+            "name": "Agave Fields",
+            "origin": ""
+          },
+          {
+            "id": "kafatasi",
+            "name": "Sugar Skull",
+            "origin": ""
+          },
+          {
+            "id": "monark",
+            "name": "Monarch Butterflies",
+            "origin": ""
+          },
+          {
+            "id": "jaguar",
+            "name": "Painted Jaguar",
+            "origin": ""
+          },
+          {
+            "id": "meksikakart",
+            "name": "Greetings from Mexico",
+            "origin": ""
+          },
+          {
+            "id": "piramit",
+            "name": "Pyramid",
+            "origin": ""
+          },
+          {
+            "id": "sokak",
+            "name": "Colorful Street",
+            "origin": ""
+          },
+          {
+            "id": "trajinera",
+            "name": "Trajinera",
+            "origin": ""
+          },
+          {
+            "id": "tulum",
+            "name": "Tulum Beach",
+            "origin": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "nordic",
+    "title": "Nordic",
+    "faTitle": "نوردیک",
+    "subgroups": [
+      {
+        "id": "norway",
+        "title": "Norway",
+        "faTitle": "نروژ",
+        "styles": [
+          {
+            "id": "selbu",
+            "name": "Selbu Rose",
+            "origin": "Selbu"
+          },
+          {
+            "id": "rosemaling",
+            "name": "Rosemaling",
+            "origin": "Telemark"
+          },
+          {
+            "id": "hardanger",
+            "name": "Hardanger Embroidery",
+            "origin": "Hardanger"
+          },
+          {
+            "id": "setesdal",
+            "name": "Setesdal Sweater",
+            "origin": "Setesdal"
+          },
+          {
+            "id": "somon",
+            "name": "Salmon",
+            "origin": ""
+          },
+          {
+            "id": "solje",
+            "name": "Sølje Brooches",
+            "origin": ""
+          },
+          {
+            "id": "fiyort",
+            "name": "The Fjord",
+            "origin": "Geiranger"
+          },
+          {
+            "id": "lofoten",
+            "name": "Lofoten",
+            "origin": "Reine"
+          },
+          {
+            "id": "bryggen",
+            "name": "Bryggen",
+            "origin": "Bergen"
+          },
+          {
+            "id": "vikinggemisi",
+            "name": "Viking Ship",
+            "origin": ""
+          },
+          {
+            "id": "vafler",
+            "name": "Heart Waffles",
+            "origin": ""
+          },
+          {
+            "id": "norvecart",
+            "name": "Greetings from Norway",
+            "origin": ""
+          }
+        ]
+      },
+      {
+        "id": "sweden",
+        "title": "Sweden",
+        "faTitle": "سوئد",
+        "styles": [
+          {
+            "id": "dalahast",
+            "name": "Dala Horses",
+            "origin": "Dalarna"
+          },
+          {
+            "id": "kurbits",
+            "name": "Kurbits",
+            "origin": "Dalarna"
+          },
+          {
+            "id": "lingon",
+            "name": "Lingonberries",
+            "origin": ""
+          },
+          {
+            "id": "midsommar",
+            "name": "Midsummer Wreath",
+            "origin": ""
+          },
+          {
+            "id": "skane",
+            "name": "Skåne Embroidery",
+            "origin": ""
+          },
+          {
+            "id": "kraftor",
+            "name": "Crayfish",
+            "origin": ""
+          },
+          {
+            "id": "stuga",
+            "name": "Red Cottage",
+            "origin": ""
+          },
+          {
+            "id": "majstang",
+            "name": "Midsummer",
+            "origin": ""
+          },
+          {
+            "id": "skargard",
+            "name": "The Archipelago",
+            "origin": "Stockholm"
+          },
+          {
+            "id": "gamlastan",
+            "name": "Gamla Stan",
+            "origin": "Stockholm"
+          },
+          {
+            "id": "fika",
+            "name": "Fika",
+            "origin": ""
+          },
+          {
+            "id": "isveckart",
+            "name": "Greetings from Sweden",
+            "origin": ""
+          }
+        ]
+      },
+      {
+        "id": "denmark",
+        "title": "Denmark",
+        "faTitle": "دانمارک",
+        "styles": [
+          {
+            "id": "kalpler",
+            "name": "Woven Hearts",
+            "origin": ""
+          },
+          {
+            "id": "dugum",
+            "name": "Sailor’s Knots",
+            "origin": ""
+          },
+          {
+            "id": "moderne",
+            "name": "Danish Modern",
+            "origin": ""
+          },
+          {
+            "id": "sild",
+            "name": "Herring",
+            "origin": ""
+          },
+          {
+            "id": "kehribar",
+            "name": "Amber",
+            "origin": ""
+          },
+          {
+            "id": "kugu",
+            "name": "Swans",
+            "origin": ""
+          },
+          {
+            "id": "nyhavn",
+            "name": "Nyhavn",
+            "origin": "Copenhagen"
+          },
+          {
+            "id": "smorrebrod",
+            "name": "Smørrebrød",
+            "origin": ""
+          },
+          {
+            "id": "wienerbrod",
+            "name": "Danish Bakery",
+            "origin": ""
+          },
+          {
+            "id": "bisiklet",
+            "name": "Copenhagen Bikes",
+            "origin": ""
+          },
+          {
+            "id": "monsklint",
+            "name": "Møns Klint",
+            "origin": "Møn"
+          },
+          {
+            "id": "danimarkakart",
+            "name": "Greetings from Denmark",
+            "origin": ""
+          }
+        ]
+      },
+      {
+        "id": "finland",
+        "title": "Finland",
+        "faTitle": "فنلاند",
+        "styles": [
+          {
+            "id": "ryijy",
+            "name": "Ryijy",
+            "origin": ""
+          },
+          {
+            "id": "himmeli",
+            "name": "Himmeli",
+            "origin": ""
+          },
+          {
+            "id": "tuohi",
+            "name": "Birch Bark",
+            "origin": ""
+          },
+          {
+            "id": "lakka",
+            "name": "Cloudberries",
+            "origin": ""
+          },
+          {
+            "id": "karjala",
+            "name": "Karelian Embroidery",
+            "origin": ""
+          },
+          {
+            "id": "lumikide",
+            "name": "Snow Crystals",
+            "origin": ""
+          },
+          {
+            "id": "binjarvi",
+            "name": "A Thousand Lakes",
+            "origin": "Koli"
+          },
+          {
+            "id": "sauna",
+            "name": "Lakeside Sauna",
+            "origin": ""
+          },
+          {
+            "id": "laponya",
+            "name": "Lapland",
+            "origin": ""
+          },
+          {
+            "id": "tramvay",
+            "name": "Helsinki Tram",
+            "origin": ""
+          },
+          {
+            "id": "piirakka",
+            "name": "Karelian Pies",
+            "origin": ""
+          },
+          {
+            "id": "finlandiyakart",
+            "name": "Greetings from Finland",
+            "origin": ""
+          }
+        ]
+      },
+      {
+        "id": "iceland",
+        "title": "Iceland",
+        "faTitle": "ایسلند",
+        "styles": [
+          {
+            "id": "lopapeysa",
+            "name": "Lopapeysa",
+            "origin": ""
+          },
+          {
+            "id": "bazalt",
+            "name": "Basalt Columns",
+            "origin": ""
+          },
+          {
+            "id": "lundi",
+            "name": "Puffins",
+            "origin": ""
+          },
+          {
+            "id": "koyun",
+            "name": "Icelandic Sheep",
+            "origin": ""
+          },
+          {
+            "id": "lav",
+            "name": "Lava and Moss",
+            "origin": ""
+          },
+          {
+            "id": "laufabraud",
+            "name": "Leaf Bread",
+            "origin": ""
+          },
+          {
+            "id": "gayzer",
+            "name": "The Geyser",
+            "origin": "Haukadalur"
+          },
+          {
+            "id": "skogafoss",
+            "name": "Skógafoss",
+            "origin": ""
+          },
+          {
+            "id": "karakum",
+            "name": "Black Sand Beach",
+            "origin": "Reynisfjara"
+          },
+          {
+            "id": "jokulsarlon",
+            "name": "Glacier Lagoon",
+            "origin": "Jökulsárlón"
+          },
+          {
+            "id": "reykjavik",
+            "name": "Reykjavík Roofs",
+            "origin": ""
+          },
+          {
+            "id": "izlandakart",
+            "name": "Greetings from Iceland",
+            "origin": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "halloween",
+    "title": "Halloween",
+    "faTitle": "هالووین",
+    "styles": [
+      {
+        "id": "balkabagi",
+        "name": "Pumpkin Patch",
+        "origin": ""
+      },
+      {
+        "id": "orumcek",
+        "name": "Spider Web",
+        "origin": ""
+      },
+      {
+        "id": "hayalet",
+        "name": "Ghost Night",
+        "origin": ""
+      }
+    ]
+  }
+];
+  const CAT_ICONS = {
+  "persia": "🇮🇷",
+  "classics": "⭐",
+  "turkiye": "🇹🇷",
+  "eastasia": "🏯",
+  "mediterranean": "🏛️",
+  "americas": "🌎",
+  "nordic": "🌲",
+  "halloween": "🎃"
+};
+
+  // Pre-index all rugs for fast search
+  const ALL_RUGS = [];
+  CATALOG.forEach(c => {
+    const catName = c.title;
+    if (c.subgroups) {
+      c.subgroups.forEach(g => {
+        g.styles.forEach(s => {
+          ALL_RUGS.push({
+            ...s,
+            catId: c.id,
+            catTitle: c.title,
+            groupTitle: g.title
+          });
+        });
+      });
+    } else {
+      c.styles.forEach(s => {
+        ALL_RUGS.push({
+          ...s,
+          catId: c.id,
+          catTitle: c.title,
+          groupTitle: ''
+        });
+      });
+    }
+  });
 
   let lastPointerX = Math.round(window.innerWidth / 2);
   let lastPointerY = Math.round(window.innerHeight / 2);
@@ -378,6 +1831,7 @@
   const overlay = document.getElementById('tg-menu-overlay');
   const mainMenu = document.getElementById('main-menu');
   const subPanel = document.getElementById('sub-menu');
+  const subHeader = document.getElementById('sub-header');
   const subItems = document.getElementById('sub-items');
 
   window.isCustomMenuOpen = false;
@@ -405,13 +1859,11 @@
     overlay.style.display = 'block';
 
     if (isTray) {
-      // Dock right above taskbar in the bottom-right corner!
       mainMenu.style.left = 'auto';
       mainMenu.style.right = '12px';
       mainMenu.style.top = 'auto';
       mainMenu.style.bottom = '48px';
     } else {
-      // Position at cursor
       let left = (clientX != null) ? clientX : lastPointerX;
       let top = (clientY != null) ? clientY : lastPointerY;
       if (left + 230 > window.innerWidth - 10) {
@@ -440,6 +1892,7 @@
     } else if (window.__TAURI_INTERNALS__?.invoke) {
       window.__TAURI_INTERNALS__.invoke('set_menu_mode', { open: false }).catch(() => {});
     }
+    window.__resetHover?.();
   }
 
   function openSub(name) {
@@ -448,44 +1901,165 @@
     const parentItem = document.getElementById('item-' + name);
     if (parentItem) parentItem.classList.add('active-sub');
 
-    let items = [];
-    let cmdType = '';
-    let activeId = '';
-
     if (name === 'styles') {
-      items = STYLES;
-      cmdType = 'style';
-      activeId = currentState.style;
+      selectedCategory = null;
+      rugSearchQuery = '';
+      renderStylesMenu();
     } else if (name === 'sizes') {
-      items = SIZES;
-      cmdType = 'size';
-      activeId = currentState.size;
+      subHeader.style.display = 'none';
+      subItems.innerHTML = SIZES.map(item => `
+        <div class="tg-item" onclick="selectSubCommand('size', '${item.id}')">
+          <span class="tg-check">${item.id === currentState.size ? checkSvg() : ''}</span>
+          <span class="tg-label">${item.label}</span>
+        </div>
+      `).join('');
     } else if (name === 'weights') {
-      items = WEIGHTS;
-      cmdType = 'weight';
-      activeId = currentState.weight;
+      subHeader.style.display = 'none';
+      subItems.innerHTML = WEIGHTS.map(item => `
+        <div class="tg-item" onclick="selectSubCommand('weight', '${item.id}')">
+          <span class="tg-check">${item.id === currentState.weight ? checkSvg() : ''}</span>
+          <span class="tg-label">${item.label}</span>
+        </div>
+      `).join('');
     }
 
-    subItems.innerHTML = items.map(item => `
-      <div class="tg-item" onclick="selectSubCommand('${cmdType}', '${item.id}')">
-        <span class="tg-check">${item.id === activeId ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5288c1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</span>
-        <span class="tg-label">${item.label}</span>
-      </div>
-    `).join('');
+    positionSubPanel(parentItem);
+  }
 
+  function checkSvg() {
+    return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5288c1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  }
+
+  function renderStylesMenu() {
+    const activeId = currentState.style;
+
+    if (rugSearchQuery.trim()) {
+      // SEARCH MODE
+      const q = rugSearchQuery.trim().toLowerCase();
+      const matches = ALL_RUGS.filter(r => 
+        r.id.toLowerCase().includes(q) ||
+        r.name.toLowerCase().includes(q) ||
+        r.origin.toLowerCase().includes(q) ||
+        r.catTitle.toLowerCase().includes(q)
+      );
+
+      subHeader.style.display = 'flex';
+      subHeader.innerHTML = `
+        <input type="text" class="tg-search-input" id="rug-search-field" placeholder="Search 237 patterns..." value="${escapeHtml(rugSearchQuery)}" oninput="onSearchChange(this.value)" autocomplete="off">
+      `;
+
+      if (matches.length === 0) {
+        subItems.innerHTML = '<div style="padding: 18px 10px; text-align: center; color: rgba(255,255,255,0.4); font-size: 12px;">No matching patterns</div>';
+      } else {
+        subItems.innerHTML = matches.map(r => `
+          <div class="tg-item" onclick="selectSubCommand('style', '${r.id}')">
+            <span class="tg-check">${r.id === activeId ? checkSvg() : ''}</span>
+            <span class="tg-label" title="${r.origin ? r.origin : ''}">${r.name}</span>
+            <span class="tg-badge">${r.catTitle}</span>
+          </div>
+        `).join('');
+      }
+
+      const inp = document.getElementById('rug-search-field');
+      if (inp) { inp.focus(); }
+      return;
+    }
+
+    if (selectedCategory) {
+      // CATEGORY DETAIL VIEW
+      const cat = CATALOG.find(c => c.id === selectedCategory);
+      subHeader.style.display = 'flex';
+      subHeader.innerHTML = `
+        <div class="tg-back-btn" onclick="backToCategories()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>${cat.title}</span>
+        </div>
+      `;
+
+      let html = '';
+      if (cat.subgroups) {
+        cat.subgroups.forEach(g => {
+          html += `<div class="tg-group-header">${g.title}</div>`;
+          g.styles.forEach(s => {
+            html += `
+              <div class="tg-item" onclick="selectSubCommand('style', '${s.id}')">
+                <span class="tg-check">${s.id === activeId ? checkSvg() : ''}</span>
+                <span class="tg-label" title="${s.origin ? s.origin : ''}">${s.name}</span>
+              </div>
+            `;
+          });
+        });
+      } else {
+        cat.styles.forEach(s => {
+          html += `
+            <div class="tg-item" onclick="selectSubCommand('style', '${s.id}')">
+              <span class="tg-check">${s.id === activeId ? checkSvg() : ''}</span>
+              <span class="tg-label" title="${s.origin ? s.origin : ''}">${s.name}</span>
+            </div>
+          `;
+        });
+      }
+      subItems.innerHTML = html;
+      return;
+    }
+
+    // ROOT CATEGORIES VIEW
+    subHeader.style.display = 'flex';
+    subHeader.innerHTML = `
+      <input type="text" class="tg-search-input" id="rug-search-field" placeholder="Search 237 patterns..." value="" oninput="onSearchChange(this.value)" autocomplete="off">
+    `;
+
+    subItems.innerHTML = CATALOG.map(cat => {
+      const count = cat.subgroups ? cat.subgroups.reduce((a, b) => a + b.styles.length, 0) : cat.styles.length;
+      const icon = CAT_ICONS[cat.id] || '🏛️';
+      return `
+        <div class="tg-item" onclick="chooseCategory('${cat.id}')">
+          <span style="font-size: 14px; width: 18px; text-align: center;">${icon}</span>
+          <span class="tg-label">${cat.title}</span>
+          <span class="tg-badge">${count}</span>
+          <span class="tg-arrow">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function onSearchChange(val) {
+    rugSearchQuery = val;
+    renderStylesMenu();
+  }
+
+  function chooseCategory(id) {
+    selectedCategory = id;
+    rugSearchQuery = '';
+    renderStylesMenu();
+    subItems.scrollTop = 0;
+  }
+
+  function backToCategories() {
+    selectedCategory = null;
+    rugSearchQuery = '';
+    renderStylesMenu();
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function positionSubPanel(parentItem) {
     const parentRect = parentItem.getBoundingClientRect();
     const mainRect = mainMenu.getBoundingClientRect();
 
-    // Position flyout submenu cleanly to the side of the main menu
-    if (mainRect.right + 225 <= window.innerWidth) {
+    if (mainRect.right + 260 <= window.innerWidth) {
       subPanel.style.left = Math.round(mainRect.right + 6) + 'px';
       subPanel.style.right = 'auto';
     } else {
-      subPanel.style.left = Math.round(mainRect.left - 222) + 'px';
+      subPanel.style.left = Math.round(mainRect.left - 257) + 'px';
       subPanel.style.right = 'auto';
     }
 
-    let subHeight = Math.min(345, items.length * 34 + 14);
+    let subHeight = Math.min(380, 10 * 34 + 14);
     let topPos = parentRect.top - 4;
     if (topPos + subHeight > window.innerHeight - 10) {
       topPos = Math.max(10, window.innerHeight - subHeight - 10);
@@ -498,6 +2072,8 @@
 
   function closeSub() {
     currentSub = null;
+    selectedCategory = null;
+    rugSearchQuery = '';
     document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('active-sub'));
     subPanel.style.display = 'none';
   }
@@ -509,26 +2085,17 @@
 
   function quitApp() {
     try {
-      if (window.__TAURI__?.core?.invoke) {
-        window.__TAURI__.core.invoke('quit_app');
-      } else if (window.__TAURI_INTERNALS__?.invoke) {
-        window.__TAURI_INTERNALS__.invoke('quit_app');
+      if (window.halim?.saveState) {
+        window.halim.saveState(currentState);
       }
-    } catch (e) {}
-    window.close();
+      if (window.__TAURI__?.core?.invoke) {
+        window.__TAURI__.core.invoke('quit_app').catch(() => {});
+      } else if (window.__TAURI_INTERNALS__?.invoke) {
+        window.__TAURI_INTERNALS__.invoke('quit_app').catch(() => {});
+      }
+    } catch(e) {}
   }
-
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-      closeCustomMenu();
-    }
-  });
-
-  // Restore full native sharpness and quality
-  try {
-    localStorage.removeItem('dc-quality');
-  } catch(e) {}
 </script>
-<script src="./bundle.js"></script>
+<script src="bundle.js"></script>
 </body>
 </html>

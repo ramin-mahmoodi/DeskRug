@@ -10,15 +10,10 @@ Built with **Tauri v2**, **Rust**, and **WebGL / Three.js**.
 
 - **Realistic Cloth Physics**: Real-time Verlet integration with structural, shear, and bending constraints, plus custom self-collision preventing mesh self-penetration.
 - **Interactive Drag & Fold**: Grab and toss any corner or edge with your mouse. The rug folds, settles, and rests naturally on your desktop floor.
-- **Classic Persian Carpet Styles**:
-  - Tabriz (تبریز)
-  - Nain (نائین)
-  - Heriz (هریس)
-  - Kilim (گلیم)
-  - Gabbeh (گبه)
-  - Turkmen (ترکمن)
-  - Bakhtiari (بختیاری)
-  - And modern classic variants (Navy, Emerald, Great Wave, Zen).
+- **Persian & Classic Rug Patterns**:
+  - Tabriz, Nain, Heriz, Bakhtiari, Kilim, Gabbeh
+  - Paisley (Buta), Qom, Turkmen, Herati, Hunting (Av), Garden (Bahce)
+  - Hereke, Iznik, Classic, Navy, Emerald, Great Wave, Zen
 - **Customizable Sizes & Weights**:
   - Sizes: Small, Medium, Large
   - Weights: Light, Normal, Heavy

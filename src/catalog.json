@@ -1,0 +1,1088 @@
+[
+  {
+    "id": "classics",
+    "title": "Classics",
+    "styles": [
+      {
+        "id": "tabriz",
+        "name": "Tabriz After Midnight"
+      },
+      {
+        "id": "klasik",
+        "name": "Madder Red"
+      },
+      {
+        "id": "lacivert",
+        "name": "Midnight"
+      },
+      {
+        "id": "zumrut",
+        "name": "Emerald"
+      },
+      {
+        "id": "kilim",
+        "name": "Kilim"
+      },
+      {
+        "id": "gorunmez",
+        "name": "Invisible"
+      }
+    ]
+  },
+  {
+    "id": "nordic",
+    "title": "Nordic · NEW",
+    "subgroups": [
+      {
+        "id": "norway",
+        "title": "Norway",
+        "styles": [
+          {
+            "id": "selbu",
+            "name": "Selbu Rose"
+          },
+          {
+            "id": "rosemaling",
+            "name": "Rosemaling"
+          },
+          {
+            "id": "hardanger",
+            "name": "Hardanger Embroidery"
+          },
+          {
+            "id": "setesdal",
+            "name": "Setesdal Sweater"
+          },
+          {
+            "id": "somon",
+            "name": "Salmon"
+          },
+          {
+            "id": "solje",
+            "name": "Sølje Brooches"
+          },
+          {
+            "id": "fiyort",
+            "name": "The Fjord"
+          },
+          {
+            "id": "lofoten",
+            "name": "Lofoten"
+          },
+          {
+            "id": "bryggen",
+            "name": "Bryggen"
+          },
+          {
+            "id": "vikinggemisi",
+            "name": "Viking Ship"
+          },
+          {
+            "id": "vafler",
+            "name": "Heart Waffles"
+          },
+          {
+            "id": "norvecart",
+            "name": "Greetings from Norway"
+          }
+        ]
+      },
+      {
+        "id": "sweden",
+        "title": "Sweden",
+        "styles": [
+          {
+            "id": "dalahast",
+            "name": "Dala Horses"
+          },
+          {
+            "id": "kurbits",
+            "name": "Kurbits"
+          },
+          {
+            "id": "lingon",
+            "name": "Lingonberries"
+          },
+          {
+            "id": "midsommar",
+            "name": "Midsummer Wreath"
+          },
+          {
+            "id": "skane",
+            "name": "Skåne Embroidery"
+          },
+          {
+            "id": "kraftor",
+            "name": "Crayfish"
+          },
+          {
+            "id": "stuga",
+            "name": "Red Cottage"
+          },
+          {
+            "id": "majstang",
+            "name": "Midsummer"
+          },
+          {
+            "id": "skargard",
+            "name": "The Archipelago"
+          },
+          {
+            "id": "gamlastan",
+            "name": "Gamla Stan"
+          },
+          {
+            "id": "fika",
+            "name": "Fika"
+          },
+          {
+            "id": "isveckart",
+            "name": "Greetings from Sweden"
+          }
+        ]
+      },
+      {
+        "id": "denmark",
+        "title": "Denmark",
+        "styles": [
+          {
+            "id": "kalpler",
+            "name": "Woven Hearts"
+          },
+          {
+            "id": "dugum",
+            "name": "Sailor’s Knots"
+          },
+          {
+            "id": "moderne",
+            "name": "Danish Modern"
+          },
+          {
+            "id": "sild",
+            "name": "Herring"
+          },
+          {
+            "id": "kehribar",
+            "name": "Amber"
+          },
+          {
+            "id": "kugu",
+            "name": "Swans"
+          },
+          {
+            "id": "nyhavn",
+            "name": "Nyhavn"
+          },
+          {
+            "id": "smorrebrod",
+            "name": "Smørrebrød"
+          },
+          {
+            "id": "wienerbrod",
+            "name": "Danish Bakery"
+          },
+          {
+            "id": "bisiklet",
+            "name": "Copenhagen Bikes"
+          },
+          {
+            "id": "monsklint",
+            "name": "Møns Klint"
+          },
+          {
+            "id": "danimarkakart",
+            "name": "Greetings from Denmark"
+          }
+        ]
+      },
+      {
+        "id": "finland",
+        "title": "Finland",
+        "styles": [
+          {
+            "id": "ryijy",
+            "name": "Ryijy"
+          },
+          {
+            "id": "himmeli",
+            "name": "Himmeli"
+          },
+          {
+            "id": "tuohi",
+            "name": "Birch Bark"
+          },
+          {
+            "id": "lakka",
+            "name": "Cloudberries"
+          },
+          {
+            "id": "karjala",
+            "name": "Karelian Embroidery"
+          },
+          {
+            "id": "lumikide",
+            "name": "Snow Crystals"
+          },
+          {
+            "id": "binjarvi",
+            "name": "A Thousand Lakes"
+          },
+          {
+            "id": "sauna",
+            "name": "Lakeside Sauna"
+          },
+          {
+            "id": "laponya",
+            "name": "Lapland"
+          },
+          {
+            "id": "tramvay",
+            "name": "Helsinki Tram"
+          },
+          {
+            "id": "piirakka",
+            "name": "Karelian Pies"
+          },
+          {
+            "id": "finlandiyakart",
+            "name": "Greetings from Finland"
+          }
+        ]
+      },
+      {
+        "id": "iceland",
+        "title": "Iceland",
+        "styles": [
+          {
+            "id": "lopapeysa",
+            "name": "Lopapeysa"
+          },
+          {
+            "id": "bazalt",
+            "name": "Basalt Columns"
+          },
+          {
+            "id": "lundi",
+            "name": "Puffins"
+          },
+          {
+            "id": "koyun",
+            "name": "Icelandic Sheep"
+          },
+          {
+            "id": "lav",
+            "name": "Lava and Moss"
+          },
+          {
+            "id": "laufabraud",
+            "name": "Leaf Bread"
+          },
+          {
+            "id": "gayzer",
+            "name": "The Geyser"
+          },
+          {
+            "id": "skogafoss",
+            "name": "Skógafoss"
+          },
+          {
+            "id": "karakum",
+            "name": "Black Sand Beach"
+          },
+          {
+            "id": "jokulsarlon",
+            "name": "Glacier Lagoon"
+          },
+          {
+            "id": "reykjavik",
+            "name": "Reykjavík Roofs"
+          },
+          {
+            "id": "izlandakart",
+            "name": "Greetings from Iceland"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mediterranean",
+    "title": "Mediterranean",
+    "subgroups": [
+      {
+        "id": "italy",
+        "title": "Italy",
+        "styles": [
+          {
+            "id": "majolika",
+            "name": "Majolica"
+          },
+          {
+            "id": "limon",
+            "name": "Amalfi Lemons"
+          },
+          {
+            "id": "damask",
+            "name": "Venetian Damask"
+          },
+          {
+            "id": "mozaik",
+            "name": "Roman Mosaic"
+          },
+          {
+            "id": "floransa",
+            "name": "Florentine Marbling"
+          },
+          {
+            "id": "murano",
+            "name": "Murano Glass"
+          },
+          {
+            "id": "makarna",
+            "name": "Pasta"
+          },
+          {
+            "id": "sicilya",
+            "name": "Sicilian Cart"
+          },
+          {
+            "id": "venedik",
+            "name": "Venice"
+          },
+          {
+            "id": "toskana",
+            "name": "Tuscany"
+          },
+          {
+            "id": "cinqueterre",
+            "name": "Cinque Terre"
+          },
+          {
+            "id": "pizza",
+            "name": "Pizza"
+          },
+          {
+            "id": "italyakart",
+            "name": "Greetings from Italy"
+          },
+          {
+            "id": "kolezyum",
+            "name": "The Colosseum"
+          },
+          {
+            "id": "gelato",
+            "name": "Gelato"
+          },
+          {
+            "id": "romasokak",
+            "name": "Roman Street"
+          }
+        ]
+      },
+      {
+        "id": "greece",
+        "title": "Greece",
+        "styles": [
+          {
+            "id": "menderes",
+            "name": "Meander"
+          },
+          {
+            "id": "amfora",
+            "name": "Amphora"
+          },
+          {
+            "id": "zeytin",
+            "name": "Olive Branch"
+          },
+          {
+            "id": "yunuslar",
+            "name": "Dolphins"
+          },
+          {
+            "id": "bizans",
+            "name": "Byzantine Mosaic"
+          },
+          {
+            "id": "ahtapot",
+            "name": "Minoan Octopus"
+          },
+          {
+            "id": "skiros",
+            "name": "Skyros Embroidery"
+          },
+          {
+            "id": "kirlangic",
+            "name": "Swallow Fresco"
+          },
+          {
+            "id": "santorini",
+            "name": "Santorini"
+          },
+          {
+            "id": "akropolis",
+            "name": "The Acropolis"
+          },
+          {
+            "id": "liman",
+            "name": "Fishing Harbor"
+          },
+          {
+            "id": "mikonos",
+            "name": "Mykonos"
+          },
+          {
+            "id": "yunankart",
+            "name": "Greetings from Greece"
+          },
+          {
+            "id": "knossos",
+            "name": "Knossos"
+          },
+          {
+            "id": "mavikapi",
+            "name": "The Blue Door"
+          },
+          {
+            "id": "yunansalata",
+            "name": "Greek Salad"
+          }
+        ]
+      },
+      {
+        "id": "spain",
+        "title": "Spain",
+        "styles": [
+          {
+            "id": "azulejo",
+            "name": "Azulejo"
+          },
+          {
+            "id": "flamenko",
+            "name": "Flamenco"
+          },
+          {
+            "id": "manton",
+            "name": "Manila Shawl"
+          },
+          {
+            "id": "granada",
+            "name": "Pomegranates"
+          },
+          {
+            "id": "trencadis",
+            "name": "Trencadís"
+          },
+          {
+            "id": "dantel",
+            "name": "Mantilla Lace"
+          },
+          {
+            "id": "gitar",
+            "name": "Spanish Guitar"
+          },
+          {
+            "id": "kastanyet",
+            "name": "Castanets"
+          },
+          {
+            "id": "elhamra",
+            "name": "The Alhambra"
+          },
+          {
+            "id": "avlu",
+            "name": "Andalusian Patio"
+          },
+          {
+            "id": "paella",
+            "name": "Paella"
+          },
+          {
+            "id": "lamancha",
+            "name": "La Mancha"
+          },
+          {
+            "id": "ispanyakart",
+            "name": "Greetings from Spain"
+          },
+          {
+            "id": "parkguell",
+            "name": "Park Güell"
+          },
+          {
+            "id": "tapas",
+            "name": "Tapas"
+          },
+          {
+            "id": "portakal",
+            "name": "Valencia Oranges"
+          }
+        ]
+      },
+      {
+        "id": "france",
+        "title": "France",
+        "styles": [
+          {
+            "id": "provence",
+            "name": "Provençal Print"
+          },
+          {
+            "id": "tomette",
+            "name": "Tomette Tiles"
+          },
+          {
+            "id": "cigale",
+            "name": "Cicadas"
+          },
+          {
+            "id": "mimoza",
+            "name": "Mimosa"
+          },
+          {
+            "id": "toile",
+            "name": "Toile"
+          },
+          {
+            "id": "moustiers",
+            "name": "Moustiers Faience"
+          },
+          {
+            "id": "lavanta",
+            "name": "Lavender Fields"
+          },
+          {
+            "id": "riviera",
+            "name": "Riviera"
+          },
+          {
+            "id": "aycicegi",
+            "name": "Sunflowers"
+          },
+          {
+            "id": "petank",
+            "name": "Pétanque"
+          },
+          {
+            "id": "pazar",
+            "name": "Provence Market"
+          },
+          {
+            "id": "kalanka",
+            "name": "Calanques"
+          },
+          {
+            "id": "fransakart",
+            "name": "Greetings from France"
+          },
+          {
+            "id": "mavisandalye",
+            "name": "Blue Chairs"
+          },
+          {
+            "id": "roussillon",
+            "name": "Roussillon"
+          },
+          {
+            "id": "camargue",
+            "name": "Camargue Horses"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "halloween",
+    "title": "Halloween",
+    "styles": [
+      {
+        "id": "balkabagi",
+        "name": "Pumpkin Patch"
+      },
+      {
+        "id": "orumcek",
+        "name": "Spider Web"
+      },
+      {
+        "id": "hayalet",
+        "name": "Ghost Night"
+      }
+    ]
+  },
+  {
+    "id": "americas",
+    "title": "Americas",
+    "subgroups": [
+      {
+        "id": "usa",
+        "title": "USA",
+        "styles": [
+          {
+            "id": "yildizlar",
+            "name": "Stars & Stripes"
+          },
+          {
+            "id": "mesa",
+            "name": "Desert Mesa"
+          },
+          {
+            "id": "yorgan",
+            "name": "Log Cabin Quilt"
+          },
+          {
+            "id": "ekose",
+            "name": "Buffalo Plaid"
+          },
+          {
+            "id": "kanyon",
+            "name": "Canyon Sunset"
+          },
+          {
+            "id": "ambar",
+            "name": "Barn Star"
+          },
+          {
+            "id": "yalniz",
+            "name": "Lone Star"
+          },
+          {
+            "id": "bizon",
+            "name": "Bison Plains"
+          },
+          {
+            "id": "kartpostal",
+            "name": "Greetings from America"
+          },
+          {
+            "id": "millipark",
+            "name": "See America"
+          },
+          {
+            "id": "beyzbol",
+            "name": "Ballpark"
+          },
+          {
+            "id": "basketbol",
+            "name": "Hardwood Court"
+          },
+          {
+            "id": "diner",
+            "name": "Diner"
+          },
+          {
+            "id": "route66",
+            "name": "Route 66"
+          }
+        ]
+      },
+      {
+        "id": "canada",
+        "title": "Canada",
+        "styles": [
+          {
+            "id": "akcaagac",
+            "name": "Maple Leaf"
+          },
+          {
+            "id": "yaprak",
+            "name": "Maple Leaf Quilt"
+          },
+          {
+            "id": "kayalik",
+            "name": "Rocky Mountains"
+          },
+          {
+            "id": "atlantik",
+            "name": "Atlantic Tartan"
+          },
+          {
+            "id": "geyik",
+            "name": "Moose Lake"
+          },
+          {
+            "id": "kazlar",
+            "name": "Canada Geese"
+          },
+          {
+            "id": "dalgic",
+            "name": "Loon at Dawn"
+          },
+          {
+            "id": "kanadakart",
+            "name": "Greetings from Canada"
+          },
+          {
+            "id": "hokey",
+            "name": "Hockey Rink"
+          },
+          {
+            "id": "kuzeyisik",
+            "name": "Northern Lights"
+          },
+          {
+            "id": "fener",
+            "name": "Lighthouse"
+          },
+          {
+            "id": "kutupayisi",
+            "name": "Polar Bear"
+          }
+        ]
+      },
+      {
+        "id": "mexico",
+        "title": "Mexico",
+        "styles": [
+          {
+            "id": "sarape",
+            "name": "Sarape"
+          },
+          {
+            "id": "greca",
+            "name": "Greca"
+          },
+          {
+            "id": "cini",
+            "name": "Blue Tile"
+          },
+          {
+            "id": "agave",
+            "name": "Agave Fields"
+          },
+          {
+            "id": "kafatasi",
+            "name": "Sugar Skull"
+          },
+          {
+            "id": "monark",
+            "name": "Monarch Butterflies"
+          },
+          {
+            "id": "jaguar",
+            "name": "Painted Jaguar"
+          },
+          {
+            "id": "meksikakart",
+            "name": "Greetings from Mexico"
+          },
+          {
+            "id": "piramit",
+            "name": "Pyramid"
+          },
+          {
+            "id": "sokak",
+            "name": "Colorful Street"
+          },
+          {
+            "id": "trajinera",
+            "name": "Trajinera"
+          },
+          {
+            "id": "tulum",
+            "name": "Tulum Beach"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "persia",
+    "title": "Persia",
+    "styles": [
+      {
+        "id": "heriz",
+        "name": "Heriz"
+      },
+      {
+        "id": "bahce",
+        "name": "Paradise Garden"
+      },
+      {
+        "id": "av",
+        "name": "Hunting Scene"
+      },
+      {
+        "id": "hayat",
+        "name": "Tree of Life"
+      },
+      {
+        "id": "buta",
+        "name": "Boteh"
+      },
+      {
+        "id": "bahtiyari",
+        "name": "Bakhtiari"
+      },
+      {
+        "id": "gabbe",
+        "name": "Qashqai Gabbeh"
+      },
+      {
+        "id": "nain",
+        "name": "Nain"
+      },
+      {
+        "id": "vazo",
+        "name": "Kerman Vase"
+      },
+      {
+        "id": "herati",
+        "name": "Herati"
+      },
+      {
+        "id": "kum",
+        "name": "Qom Silk"
+      },
+      {
+        "id": "turkmen",
+        "name": "Turkmen Gul"
+      }
+    ]
+  },
+  {
+    "id": "turkiye",
+    "title": "Türkiye",
+    "styles": [
+      {
+        "id": "usak",
+        "name": "Ushak Medallion"
+      },
+      {
+        "id": "lotto",
+        "name": "Lotto"
+      },
+      {
+        "id": "bergama",
+        "name": "Bergama"
+      },
+      {
+        "id": "yagcibedir",
+        "name": "Yağcıbedir"
+      },
+      {
+        "id": "selcuklu",
+        "name": "Seljuk"
+      },
+      {
+        "id": "hereke",
+        "name": "Hereke Silk"
+      },
+      {
+        "id": "iznik",
+        "name": "Iznik Tulips"
+      },
+      {
+        "id": "turkiyekart",
+        "name": "Greetings from Türkiye"
+      },
+      {
+        "id": "kapadokya",
+        "name": "Cappadocia Balloons"
+      },
+      {
+        "id": "bogaz",
+        "name": "Bosphorus Ferry"
+      },
+      {
+        "id": "pamukkale",
+        "name": "Pamukkale"
+      },
+      {
+        "id": "nazar",
+        "name": "Nazar Bead"
+      }
+    ]
+  },
+  {
+    "id": "eastAsia",
+    "title": "East Asia",
+    "subgroups": [
+      {
+        "id": "korea",
+        "title": "Korea",
+        "styles": [
+          {
+            "id": "bojagi",
+            "name": "Bojagi"
+          },
+          {
+            "id": "saekdong",
+            "name": "Saekdong Stripes"
+          },
+          {
+            "id": "seladon",
+            "name": "Celadon Cranes"
+          },
+          {
+            "id": "dancheong",
+            "name": "Dancheong"
+          },
+          {
+            "id": "hangeul",
+            "name": "Hangeul"
+          },
+          {
+            "id": "najeon",
+            "name": "Mother-of-Pearl"
+          },
+          {
+            "id": "sipjang",
+            "name": "Ten Longevities"
+          },
+          {
+            "id": "kaplan",
+            "name": "Magpie and Tiger"
+          },
+          {
+            "id": "hanok",
+            "name": "Hanok"
+          },
+          {
+            "id": "seul",
+            "name": "Seoul at Night"
+          },
+          {
+            "id": "korekart",
+            "name": "Greetings from Korea"
+          },
+          {
+            "id": "yeondeung",
+            "name": "Lotus Lanterns"
+          },
+          {
+            "id": "bibimbap",
+            "name": "Bibimbap"
+          },
+          {
+            "id": "jeju",
+            "name": "Jeju Island"
+          }
+        ]
+      },
+      {
+        "id": "japan",
+        "title": "Japan",
+        "styles": [
+          {
+            "id": "seigaiha",
+            "name": "Seigaiha Waves"
+          },
+          {
+            "id": "asanoha",
+            "name": "Asanoha"
+          },
+          {
+            "id": "boro",
+            "name": "Boro"
+          },
+          {
+            "id": "koi",
+            "name": "Koi Pond"
+          },
+          {
+            "id": "byobu",
+            "name": "Gold Screen"
+          },
+          {
+            "id": "shibori",
+            "name": "Shibori"
+          },
+          {
+            "id": "zen",
+            "name": "Zen Garden"
+          },
+          {
+            "id": "fuji",
+            "name": "Fuji and Sakura"
+          },
+          {
+            "id": "kyoto",
+            "name": "Kyoto Lane"
+          },
+          {
+            "id": "japonkart",
+            "name": "Greetings from Japan"
+          },
+          {
+            "id": "buyukdalga",
+            "name": "The Great Wave"
+          },
+          {
+            "id": "manekineko",
+            "name": "Maneki-neko"
+          },
+          {
+            "id": "torii",
+            "name": "Torii Path"
+          },
+          {
+            "id": "sushi",
+            "name": "Sushi"
+          }
+        ]
+      },
+      {
+        "id": "china",
+        "title": "China",
+        "styles": [
+          {
+            "id": "porselen",
+            "name": "Blue and White"
+          },
+          {
+            "id": "bulut",
+            "name": "Lucky Clouds"
+          },
+          {
+            "id": "artdeco",
+            "name": "Shanghai Deco"
+          },
+          {
+            "id": "ningxia",
+            "name": "Ningxia Peony"
+          },
+          {
+            "id": "bambu",
+            "name": "Ink Bamboo"
+          },
+          {
+            "id": "kagitkesim",
+            "name": "Paper-Cut"
+          },
+          {
+            "id": "imparator",
+            "name": "Imperial Waves"
+          },
+          {
+            "id": "mahjong",
+            "name": "Mahjong"
+          },
+          {
+            "id": "panda",
+            "name": "Panda"
+          },
+          {
+            "id": "seddicin",
+            "name": "The Great Wall"
+          },
+          {
+            "id": "cinkart",
+            "name": "Greetings from China"
+          },
+          {
+            "id": "fenerfest",
+            "name": "Lantern Festival"
+          },
+          {
+            "id": "guilin",
+            "name": "Guilin"
+          },
+          {
+            "id": "dimsum",
+            "name": "Dim Sum"
+          }
+        ]
+      }
+    ]
+  }
+]
