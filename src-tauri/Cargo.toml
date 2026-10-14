@@ -1,6 +1,6 @@
 [package]
 name = "deskrug"
-version = "0.1.0"
+version = "0.1.1"
 description = "DeskRug - Interactive Persian Carpet on your Desktop"
 authors = ["Ramin Mahmoodi"]
 edition = "2024"
